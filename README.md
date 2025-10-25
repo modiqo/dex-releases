@@ -2,6 +2,8 @@
 
 > **Deterministic agent-tool orchestration through embedded guidance and self-reflective languages.**
 
+<img src="images/mq_3.png" alt="mq screenshot" height="200">
+
 ## What is mq?
 
 mq sits **between your AI agent and MCP servers**, creating a self-reflective learning loop that captures action sequences for future reuse.
