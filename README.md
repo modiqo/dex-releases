@@ -2,6 +2,7 @@
 
 > **Deterministic agent-tool orchestration through embedded guidance and self-reflective languages.**
 
+<img src="images/dex.png" alt="dex screenshot" height="200">
 
 ---
 
@@ -661,11 +662,11 @@
 **Option 1: Install via curl (Recommended)**
 
 ```bash
-# Install latest version (v0.8.0+)
+# Install latest version (v0.9.0+)
 curl -fsSL https://github.com/modiqo/dex-releases/releases/latest/download/install.sh | bash
 
 # Install specific version
-DEX_VERSION=0.8.0 curl -fsSL https://github.com/modiqo/dex-releases/releases/latest/download/install.sh | bash
+DEX_VERSION=0.9.0 curl -fsSL https://github.com/modiqo/dex-releases/releases/latest/download/install.sh | bash
 
 # Install to custom directory
 DEX_INSTALL_DIR=/usr/local/bin curl -fsSL https://github.com/modiqo/dex-releases/releases/latest/download/install.sh | bash
@@ -688,10 +689,25 @@ wget https://github.com/modiqo/dex-releases/releases/latest/download/dex-linux-x
 tar xzf dex-linux-x86_64.tar.gz
 sudo mv dex /usr/local/bin/
 ```
+
+**Option 3: Build from source**
+
+```bash
+# Clone the repository
+git clone https://github.com/modiqo/dex.git
+cd dex
+
+# Build and install
+cargo install --path .
+```
+
 ---
 
 ## Learn More
 
-- **Documentation:** [https://getdex.sh](https://getdex.dev)
+- **Documentation:** [https://getdex.dev](https://getdex.dev)
+- **Repository:** [https://github.com/modiqo/dex](https://github.com/modiqo/dex)
+- **License:** MIT
 - **Author:** Chetan Conikee <chetan@modiqo.ai>
+
 ---
