@@ -30,80 +30,51 @@
 
 
 ═══════════════════════════════════════════════════════════════════════════════
- FIGURE 1: SYSTEM ARCHITECTURE - DEVELOPER TO MCP SERVERS
+ FIGURE 1: SYSTEM ARCHITECTURE - CHAT SESSIONS TO WORKSPACE SANDBOXES
 ═══════════════════════════════════════════════════════════════════════════════
 
 
-    DEVELOPER              AGENT FRAMEWORK              dex BINARY
-  ┌───────────┐           ┌────────────────┐        ┌───────────────┐
-  │           │           │                │        │   COMMANDS    │
-  │  "Fetch   │──────────>│    CURSOR      │───────>│               │
-  │   my      │ Natural   │                │  CLI   │ dex init      │
-  │  recent   │ Language  │    CLAUDE      │  exec  │ dex POST      │
-  │  emails"  │           │    DESKTOP     │        │ dex @N '$'    │
-  │           │           │                │        │ dex export    │
-  │           │           │    CLINE       │        │ dex flow      │
-  └───────────┘           │                │        │ dex guidance  │
-      ▲                   │    AIDER       │        │ dex detect    │
-      │                   │                │        │ dex plan      │
-      │                   └────────────────┘        └───────┬───────┘
-      │                           ▲                         │
-      │                           │                         │
-      │                    HINTS  │                         │
-      │                    (stderr)                         │
-      │                           │                         │
-      │                           │                ┌────────┴────────┐
-      │                           │                │  EMBEDDED       │
-      │                           │                │  GUIDANCE       │
-      │                           │                ├─────────────────┤
-      │                           └────────────────│ Best practices  │
-      │                                            │ Anti-patterns   │
-      │                                            │ MCP examples    │
-  ┌───┴────┐                                       │ Error hints     │
-  │ RESULT │                                       └────────┬────────┘
-  │        │                                                │
-  │ "Here  │                                                │
-  │  are   │                                                ▼
-  │ your 5 │                              ┌─────────────────────────────┐
-  │ emails"│                              │  CORE MECHANISMS            │
-  └────────┘                              │  (stateless, deterministic) │
-                                          ├─────────────────────────────┤
-                                          │                             │
-                                          │  ┌───────────────────────┐  │
-                                          │  │ RESPONSE CACHE        │  │
-                                          │  │ @1 @2 @3 ... @N       │  │
-                                          │  │ In-memory HashMap     │  │
-                                          │  │ Query: <100μs         │  │
-                                          │  └───────────────────────┘  │
-                                          │                             │
-                                          │  ┌───────────────────────┐  │
-                                          │  │ SESSION MANAGER       │  │
-                                          │  │ -s flag auto-inject   │  │
-                                          │  │ Header: Mcp-Session   │  │
-                                          │  └───────────────────────┘  │
-                                          │                             │
-                                          │  ┌───────────────────────┐  │
-                                          │  │ DAG ANALYZER          │  │
-                                          │  │ Dependency tracking   │  │
-                                          │  │ Parallel detection    │  │
-                                          │  │ Topological sort      │  │
-                                          │  └───────────────────────┘  │
-                                          │                             │
-                                          │  ┌───────────────────────┐  │
-                                          │  │ ANTI-PATTERN ENGINE   │  │
-                                          │  │ 16 patterns known     │  │
-                                          │  │ Real-time detection   │  │
-                                          │  │ Suggestion generator  │  │
-                                          │  └───────────────────────┘  │
-                                          │                             │
-                                          │  ┌───────────────────────┐  │
-                                          │  │ FLOW METRICS          │  │
-                                          │  │ Binary storage <500B  │  │
-                                          │  │ Circular buffer (20)  │  │
-                                          │  │ Drift detection       │  │
-                                          │  └───────────────────────┘  │
-                                          │                             │
-                                          └─────────────┬───────────────┘
+
+
+    DEVELOPER         AGENT FRAMEWORK           WORKSPACE SANDBOX         dex CORE
+  ┌──────────┐       ┌──────────────┐        ┌──────────────────┐    ┌──────────────┐
+  │          │       │              │        │  Session Mirror  │    │  MECHANISMS  │
+  │ Chat #1  │──────>│   CURSOR     │───────>│ ┌──────────────┐ │    │              │
+  │ "Fetch   │Natural│   Chat       │Create  │ │ Workspace:   │ │───>│ • Cache @N   │
+  │  emails" │Lang   │   Session A  │Sandbox │ │ fetch-emails │ │    │ • Sessions   │
+  │          │       │              │        │ │              │ │    │ • DAG        │
+  └──────────┘       └──────────────┘        │ │ State:       │ │    │ • Guidance   │
+                                              │ │ - @1 @2 @3   │ │    │ • Metrics    │
+  ┌──────────┐       ┌──────────────┐        │ │ - $vars      │ │    └──────┬───────┘
+  │          │       │              │        │ │ - sessions   │ │           │
+  │ Chat #2  │──────>│   CLAUDE     │───────>│ └──────────────┘ │           │
+  │ "Create  │Natural│   DESKTOP    │Create  │                  │           │
+  │  issue"  │Lang   │   Session B  │Sandbox │ ┌──────────────┐ │           │
+  │          │       │              │        │ │ Workspace:   │ │           │
+  └──────────┘       └──────────────┘        │ │ create-issue │ │           │
+                                              │ │              │ │           │
+  ┌──────────┐       ┌──────────────┐        │ │ State:       │ │           │
+  │          │       │              │        │ │ - @1 @2      │ │           │
+  │ Chat #3  │──────>│    CLINE     │───────>│ │ - $owner     │ │           │
+  │ "Deploy  │Natural│   Session C  │Create  │ │ - sessions   │ │           │
+  │  app"    │Lang   │              │Sandbox │ └──────────────┘ │           │
+  │          │       │              │        │                  │           │
+  └──────────┘       └──────────────┘        └────────┬─────────┘           │
+      ▲                                               │                     │
+      │                                               │ Isolated            │
+      │              ┌─────────────────────────────────┘ sandboxes          │
+      │              │                                   per session         │
+  ┌───┴──────┐       │                                                      │
+  │ RESULTS  │       │                                                      │
+  │ + HINTS  │       │         Each workspace:                              │
+  └──────────┘       │         • Mirrors one chat session                   │
+                     │         • Isolated state (@N, $vars)                 │
+                     │         • Independent MCP sessions                   │
+                     │         • Separate cache namespace                   │
+                     │         • Can export to reusable flow                │
+                     │                                                      │
+                     │                                                      │
+                     └──────────────────────────────────────────────────────┘
                                                         │
                                                         │ JSON-RPC 2.0
                                                         │ over HTTP
@@ -125,6 +96,27 @@
                    │ call     │                   │ call     │      │ call     │
                    │ resources│                   │ resources│      │ resources│
                    └──────────┘                   └──────────┘      └──────────┘
+
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │ KEY INSIGHT: Workspace Sandbox Isolation                                │
+  ├─────────────────────────────────────────────────────────────────────────┤
+  │                                                                         │
+  │  Each chat session gets its own isolated workspace sandbox:             │
+  │                                                                         │
+  │  Chat #1 → workspace: fetch-emails                                      │
+  │    • Responses: @1, @2, @3                                              │
+  │    • Variables: $max_results=5                                          │
+  │    • Sessions: gmail-session-abc                                        │
+  │                                                                         │
+  │  Chat #2 → workspace: create-issue                                      │
+  │    • Responses: @1, @2 (DIFFERENT from Chat #1!)                        │
+  │    • Variables: $owner=modiqo, $repo=dex                                │
+  │    • Sessions: github-session-xyz                                       │
+  │                                                                         │
+  │  No interference between chats. Full isolation. Clean state.            │
+  │                                                                         │
+  └─────────────────────────────────────────────────────────────────────────┘
 
 
 ═══════════════════════════════════════════════════════════════════════════════
