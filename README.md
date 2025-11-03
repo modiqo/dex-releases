@@ -689,9 +689,121 @@ sudo mv dex /usr/local/bin/
 git clone https://github.com/modiqo/dex.git
 cd dex
 
-# Build and install
+# Build and install (base features)
 cargo install --path .
+
+# Build and install with enterprise features
+cargo install --path . --features enterprise
 ```
+
+---
+
+## Enterprise Features
+
+dex offers an **enterprise tier** with advanced endpoint analytics and monitoring capabilities, available as a feature flag during build.
+
+### **What's Included**
+
+**`dex ps`** - Endpoint Analytics & Monitoring
+
+Like `htop` for MCP endpoints - provides real-time visibility into endpoint health, performance, and usage patterns:
+
+- **Live Monitoring**: See all endpoint activity, success rates, and latency
+- **Detailed Statistics**: Deep dive into specific endpoints with p50/p95/p99 percentiles
+- **Error Analysis**: Identify error patterns across all endpoints
+- **Anomaly Detection**: Statistical detection of traffic spikes, latency degradation, and error rate changes
+- **Cost Attribution**: Track token usage and estimated costs per endpoint
+- **Time Windows**: Analyze historical data (1h, 24h, 7d, 30d)
+
+**Automatic Recording:**
+- Every HTTP request is automatically tracked (non-blocking, async)
+- Metrics stored in `~/.dex/storage/endpoints.db` (SQLite)
+- Zero configuration required
+- Privacy-first: All data stays local, no telemetry
+
+### **How to Enable**
+
+**During Development:**
+```bash
+# Build with enterprise features
+cargo build --features enterprise
+
+# Run tests with enterprise features
+cargo test --features enterprise
+
+# Build optimized release
+cargo build --features enterprise --release
+```
+
+**For Installation:**
+```bash
+# Install with enterprise features enabled
+cargo install --path . --features enterprise
+
+# Or from crates.io (when published)
+cargo install dex --features enterprise
+```
+
+### **Usage**
+
+Once enabled, use `dex ps` to monitor your MCP endpoints:
+
+```bash
+# Live monitoring (all endpoints)
+dex ps
+
+# Detailed endpoint analysis
+dex ps --endpoint /github-mcp --detailed
+
+# Error analysis across all endpoints
+dex ps --errors
+
+# Detect anomalies (traffic spikes, latency degradation)
+dex ps --anomalies
+
+# Custom time window
+dex ps --window 24h
+
+# Get help
+dex help ps
+```
+
+### **Example Output**
+
+```
+Endpoint Analytics (last 1h)
+
+✓ /github-mcp:
+  Requests           47
+  Success            98.0%
+  Errors             1 (2.0%)
+  p50 latency        245ms
+  p95 latency        680ms
+  Cost               $0.0904
+
+⚠ /stripe-mcp:
+  Requests           12
+  Success            75.0%
+  Errors             3 (25.0%)
+  p50 latency        892ms
+  p95 latency        1840ms
+  Cost               $0.0077
+```
+
+### **Technical Details**
+
+- **Storage**: SQLite database at `~/.dex/storage/endpoints.db`
+- **Binary Size**: Adds ~3 MB (11 MB total with enterprise vs 8 MB base)
+- **Performance**: <5ms write latency, <10ms query latency
+- **Privacy**: All data local, no external telemetry
+- **Dependencies**: Bundled SQLite (no external deps)
+
+### **Documentation**
+
+Full documentation available in `docs/metrics/`:
+- `README.md` - Overview and architecture
+- `SQLITE_FINAL.md` - Implementation details
+- `endpoint_analytics.md` - Design specification
 
 ---
 
