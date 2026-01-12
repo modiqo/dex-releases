@@ -1,817 +1,864 @@
 # dex - Execution Context Engineering
 
-> **Deterministic agent-tool orchestration through embedded guidance and self-reflective languages.**
+> **A substrate between agents and APIs**
 
-<img src="images/dex.png" alt="dex screenshot" height="200">
+Deterministic agent-tool orchestration through embedded guidance and self-reflective languages.
 
 ---
 
+## What is dex?
+
+dex sits **between your AI agent and APIs**, transforming exploration into reusable, deterministic workflows with 90%+ token savings on repeat tasks.
+
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ SYSTEM                                                                       │
-│ OVERVIEW      dex: Lightweight Command Tool for MCP Protocol                 │
-├──────────────────────────────────────────────────────────────────────────────┤
-│ BINARY SIZE   8.1 MB                                                         │
-│ DEPENDENCIES  Zero runtime dependencies                                      │
-│ LANGUAGE      Rust (pure, no C bindings)                                     │
-│ PLATFORMS     Linux (x86_64, ARM64, musl) · macOS (Intel, Apple Silicon)     │
-│               Windows                                                        │
-└──────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ KEY                                                                          │
-│ METRICS       First Exploration: 30 seconds · 8,400 tokens                   │
-│               Subsequent Runs:   2 seconds  · 250 tokens                     │
-│                                                                              │
-│               Cache Query Time:  <100 microseconds                           │
-│               Flow Metrics Size: <500 bytes (binary)                         │
-│               Anti-Patterns:     16 patterns detected                        │
-└──────────────────────────────────────────────────────────────────────────────┘
-
-
-═══════════════════════════════════════════════════════════════════════════════
- FIGURE 1: SYSTEM ARCHITECTURE - CHAT SESSIONS TO WORKSPACE SANDBOXES
-═══════════════════════════════════════════════════════════════════════════════
-
-
-
-
-    DEVELOPER         AGENT FRAMEWORK           WORKSPACE SANDBOX         dex CORE
-  ┌──────────┐       ┌──────────────┐        ┌──────────────────┐    ┌──────────────┐
-  │          │       │              │        │  Session Mirror  │    │  MECHANISMS  │
-  │ Chat #1  │──────>│   CURSOR     │───────>│ ┌──────────────┐ │    │              │
-  │ "Fetch   │Natural│   Chat       │Create  │ │ Workspace:   │ │───>│ • Cache @N   │
-  │  emails" │Lang   │   Session A  │Sandbox │ │ fetch-emails │ │    │ • Sessions   │
-  │          │       │              │        │ │              │ │    │ • DAG        │
-  └──────────┘       └──────────────┘        │ │ State:       │ │    │ • Guidance   │
-                                              │ │ - @1 @2 @3   │ │    │ • Metrics    │
-  ┌──────────┐       ┌──────────────┐        │ │ - $vars      │ │    └──────┬───────┘
-  │          │       │              │        │ │ - sessions   │ │           │
-  │ Chat #2  │──────>│   CLAUDE     │───────>│ └──────────────┘ │           │
-  │ "Create  │Natural│   DESKTOP    │Create  │                  │           │
-  │  issue"  │Lang   │   Session B  │Sandbox │ ┌──────────────┐ │           │
-  │          │       │              │        │ │ Workspace:   │ │           │
-  └──────────┘       └──────────────┘        │ │ create-issue │ │           │
-                                              │ │              │ │           │
-  ┌──────────┐       ┌──────────────┐        │ │ State:       │ │           │
-  │          │       │              │        │ │ - @1 @2      │ │           │
-  │ Chat #3  │──────>│    CLINE     │───────>│ │ - $owner     │ │           │
-  │ "Deploy  │Natural│   Session C  │Create  │ │ - sessions   │ │           │
-  │  app"    │Lang   │              │Sandbox │ └──────────────┘ │           │
-  │          │       │              │        │                  │           │
-  └──────────┘       └──────────────┘        └────────┬─────────┘           │
-      ▲                                               │                     │
-      │                                               │ Isolated            │
-      │              ┌─────────────────────────────────┘ sandboxes          │
-      │              │                                   per session         │
-  ┌───┴──────┐       │                                                      │
-  │ RESULTS  │       │                                                      │
-  │ + HINTS  │       │         Each workspace:                              │
-  └──────────┘       │         • Mirrors one chat session                   │
-                     │         • Isolated state (@N, $vars)                 │
-                     │         • Independent MCP sessions                   │
-                     │         • Separate cache namespace                   │
-                     │         • Can export to reusable flow                │
-                     │                                                      │
-                     │                                                      │
-                     └──────────────────────────────────────────────────────┘
-                                                        │
-                                                        │ JSON-RPC 2.0
-                                                        │ over HTTP
-                                                        ▼
-                                          ┌─────────────────────────────┐
-                                          │   MODEL CONTEXT PROTOCOL    │
-                                          │   (MCP) SPECIFICATION       │
-                                          └─────────────┬───────────────┘
-                                                        │
-                        ┌───────────────────────────────┼──────────────────┐
-                        │                               │                  │
-                        ▼                               ▼                  ▼
-                   ┌──────────┐                   ┌──────────┐      ┌──────────┐
-                   │ /GMAIL   │                   │ /GITHUB  │      │ /SLACK   │
-                   │   MCP    │                   │   MCP    │      │   MCP    │
-                   ├──────────┤                   ├──────────┤      ├──────────┤
-                   │ init     │                   │ init     │      │ init     │
-                   │ tools    │                   │ tools    │      │ tools    │
-                   │ call     │                   │ call     │      │ call     │
-                   │ resources│                   │ resources│      │ resources│
-                   └──────────┘                   └──────────┘      └──────────┘
-
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ KEY INSIGHT: Workspace Sandbox Isolation                                │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │                                                                         │
-  │  Each chat session gets its own isolated workspace sandbox:             │
-  │                                                                         │
-  │  Chat #1 → workspace: fetch-emails                                      │
-  │    • Responses: @1, @2, @3                                              │
-  │    • Variables: $max_results=5                                          │
-  │    • Sessions: gmail-session-abc                                        │
-  │                                                                         │
-  │  Chat #2 → workspace: create-issue                                      │
-  │    • Responses: @1, @2 (DIFFERENT from Chat #1!)                        │
-  │    • Variables: $owner=modiqo, $repo=dex                                │
-  │    • Sessions: github-session-xyz                                       │
-  │                                                                         │
-  │  No interference between chats. Full isolation. Clean state.            │
-  │                                                                         │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-
-═══════════════════════════════════════════════════════════════════════════════
- FIGURE 2: LEARNING CYCLE - FIRST TIME EXECUTION (EXPLORATION PHASE)
-═══════════════════════════════════════════════════════════════════════════════
-
-  ELAPSED TIME: 30 seconds
-  TOKENS USED:  8,400 tokens
-  PHASE:        Agent explores, makes mistakes, learns correct patterns
-
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ AGENT EXECUTION TRACE                                                   │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-    t=0s     │  $ dex flow search "recent emails"
-             │  No matches found
-             │  [Agent decides to explore]
-             │
-    t=1s     │  $ dex init recent-emails --seq
-             │  Workspace: ~/.dex/workspaces/recent-emails
-             │  Mode: sequential
-             │
-    t=2s     │  $ cd ~/.dex/workspaces/recent-emails
-             │  $ dex set max_results=5
-             │  Variable stored: max_results=5
-             │
-    t=3s     │  $ dex init-session /gmail
-             │  Session created: @1
-             │  Session-Id: virtual-gmail-abc123
-             │
-    t=5s     │  $ dex POST /gmail '{"method":"tools/call",...}' -s
-             │  Response cached: @2
-             │  [Agent needs to extract message IDs]
-             │
-    t=5s     │  $ dex @2 '$.result.tools'
-             │  Error: No such path
-    t=5s     │  Query time: 87μs [FROM CACHE]
-             │  [First mistake - wrong path]
-             │
-    t=6s     │  $ dex @2 '$.tools'  
-             │  Result: null
-    t=6s     │  Query time: 62μs [FROM CACHE]
-             │  [Second mistake - still wrong]
-             │
-    t=7s     │  $ dex @2 '$'
-             │  [Agent inspects full response structure]
-    t=7s     │  Query time: 45μs [FROM CACHE]
-             │
-    t=8s     │  $ dex @2 '$.result.content[0].text'
-             │  Result: {"messages": [...]}
-    t=8s     │  Query time: 93μs [FROM CACHE]
-             │  [Success! Correct path found]
-             │
-    t=9s     │  $ dex @2 '$.result.content[0].text | @json | 
-             │          .messages[0].id' -s msg_id -r
-             │  Variable stored: msg_id=abc123xyz
-             │
-    t=12s    │  $ dex POST /gmail '{"id":"$msg_id","format":"full"}' -t -s
-             │  Response cached: @3
-             │  Template expanded: $msg_id -> abc123xyz
-             │
-    t=15s    │  $ dex for @2 '$.result.content[0].text | @json | 
-             │          .messages[]' --parallel POST /gmail '{...}' -s
-             │  Parallel execution: 5 requests
-             │  Responses cached: @4 @5 @6 @7 @8
-             │
-    t=20s    │  $ dex display @4..@8 --base '$.result.content[0].text | 
-             │          @json' --field subject='...' --field from='...'
-             │  
-             │  ┌─────────────────────────────────────────────────────┐
-             │  │ Results displayed to developer                      │
-             │  └─────────────────────────────────────────────────────┘
-             │
-    t=22s    │  $ dex plan
-             │  
-             │  DAG Analysis:
-             │    Level 0: @1 (init-session)
-             │    Level 1: @2 (tools/call) [depends on @1]
-             │    Level 2: @4 @5 @6 @7 @8 (parallel fetch) [depends on @2]
-             │  
-             │  [HINT] Detected: 5 requests executed in parallel (optimal)
-             │
-    t=23s    │  $ dex stats
-             │  
-             │  Token Usage:
-             │    Discovery:  2,100 tokens
-             │    Schema:     3,200 tokens  
-             │    Execution:  3,100 tokens
-             │    Total:      8,400 tokens
-             │  
-             │  Cache Performance:
-             │    Queries:    7 total
-             │    Cache hits: 6 queries (<100μs each)
-             │    HTTP calls: 7 requests
-             │
-    t=25s    │  $ dex detect
-             │  
-             │  Anti-Pattern Analysis:
-             │    [OK] No sequential operations that could be parallel
-             │    [OK] Session management correct (-s flag used)
-             │    [OK] Error handling present
-             │  
-             │  No anti-patterns detected.
-             │
-    t=28s    │  $ dex export ~/.dex/flows/gmail/recent-emails.sh \
-             │      --params max_results \
-             │      --description "Fetch recent Gmail messages" \
-             │      --tag gmail --tag parallel
-             │  
-             │  Exported to: ~/.dex/flows/gmail/recent-emails.sh
-             │  Parameters: max_results (required)
-             │  Errors filtered: 2 failed query attempts excluded
-             │  
-             │  ┌────────────────────────────────────────────────────┐
-             │  │ REIFICATION COMPLETE                               │
-             │  │ Successful sequence → Procedural memory            │
-             │  └────────────────────────────────────────────────────┘
-             │
-    t=30s    EXPLORATION COMPLETE
-
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ WHAT HAPPENED                                                           │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │                                                                         │
-  │  • Agent made 2 query mistakes (wrong paths)                            │
-  │  • Mistakes cost <100μs each (cache, not HTTP retries)                  │
-  │  • Agent found correct pattern on 3rd attempt                           │
-  │  • dex detected parallel optimization automatically                     │
-  │  • Successful sequence exported, errors filtered out                    │
-  │  • Result: Deterministic flow in ~/.dex/flows/                          │
-  │                                                                         │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-
-═══════════════════════════════════════════════════════════════════════════════
- FIGURE 3: HABIT EXECUTION - SUBSEQUENT INVOCATIONS (PROCEDURAL PHASE)
-═══════════════════════════════════════════════════════════════════════════════
-
-  ELAPSED TIME: 2 seconds
-  TOKENS USED:  250 tokens
-  PHASE:        Agent recognizes known task, invokes procedural memory
-
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ AGENT EXECUTION TRACE                                                   │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-    t=0s     │  $ dex flow search "recent emails"
-             │  
-             │  Semantic Search Results:
-             │  
-             │  ┌────────────────────────────────────────────────────┐
-             │  │ Match: gmail/recent-emails.sh                      │
-             │  │ Score: 92%                                         │
-             │  │ Params: max_results                                │
-             │  │ Tags: gmail, parallel                              │
-             │  │ Last used: 2 minutes ago                           │
-             │  │ Success rate: 100% (1 invocations)                 │
-             │  └────────────────────────────────────────────────────┘
-             │  
-             │  [Agent recognizes this as known procedure]
-             │
-    t=0.5s   │  $ ~/.dex/flows/gmail/recent-emails.sh 5
-             │  
-             │  ┌────────────────────────────────────────────────────┐
-             │  │ FLOW EXECUTION (DETERMINISTIC)                     │
-             │  └────────────────────────────────────────────────────┘
-             │  
-             │  Validating token... OK
-             │  Checking endpoint... OK
-             │  Initializing session... OK
-             │  Fetching messages... OK (5 messages)
-             │  Parallel fetch... OK (5 requests, 900ms)
-             │  Formatting output... OK
-             │  
-             │  ┌────────────────────────────────────────────────────┐
-             │  │ Results displayed to developer                     │
-             │  └────────────────────────────────────────────────────┘
-             │  
-    t=2s     │  Updating metrics: ~/.dex/flows/gmail/recent-emails.sh.metrics
-             │  
-             │  Metrics Updated:
-             │    Total invocations: 2
-             │    Successful: 2 (100%)
-             │    Recent success rate: 100%
-             │    Historical success rate: 100%
-             │
-    t=2s     HABIT EXECUTION COMPLETE
-
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ WHAT HAPPENED                                                           │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │                                                                         │
-  │  • Agent searched procedural memory first (not exploration)             │
-  │  • Found existing flow with 92% semantic match                          │
-  │  • Invoked flow directly (no rediscovery, no mistakes)                  │
-  │  • Execution was deterministic (same operations every time)             │
-  │  • Metrics updated for drift detection                                  │
-  │  • Time: 93% faster (2s vs 30s)                                         │
-  │  • Tokens: 97% reduction (250 vs 8,400)                                 │
-  │                                                                         │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-
-═══════════════════════════════════════════════════════════════════════════════
- FIGURE 4: ADAPTIVE FORGETTING - ENVIRONMENTAL DRIFT DETECTION
-═══════════════════════════════════════════════════════════════════════════════
-
-  SCENARIO: Gmail API schema changed 2 weeks after flow creation
-  DETECTION: Statistical drift analysis after 15 consecutive failures
-
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ FLOW METRICS FILE: gmail/recent-emails.sh.metrics                       │
-  │ FORMAT: Binary (bincode), SIZE: 517 bytes                               │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-    HISTORICAL BASELINE
-    ─────────────────────────────────────────────────────────────────
-    Total invocations:       115
-    Successful:              104  (90.4%)
-    Failed:                   11  (9.6%)
-    
-    Error breakdown:
-      Network timeout:         7  (6.1%)
-      Rate limit:              4  (3.5%)
-      Schema mismatch:         0  (0.0%)  ◄─── Initially zero
-
-
-    RECENT WINDOW (Last 20 invocations, circular buffer)
-    ─────────────────────────────────────────────────────────────────
-    Invocation #96:  ✓ Success
-    Invocation #97:  ✓ Success
-    Invocation #98:  ✓ Success
-    Invocation #99:  ✓ Success
-    Invocation #100: ✓ Success
-    
-    [2 weeks later: Gmail API update deployed]
-    
-    Invocation #101: ✗ Failed  (SchemaMismatch)
-    Invocation #102: ✗ Failed  (SchemaMismatch)
-    Invocation #103: ✗ Failed  (SchemaMismatch)
-    Invocation #104: ✗ Failed  (SchemaMismatch)
-    Invocation #105: ✗ Failed  (SchemaMismatch)
-    Invocation #106: ✗ Failed  (SchemaMismatch)
-    Invocation #107: ✗ Failed  (SchemaMismatch)
-    Invocation #108: ✗ Failed  (SchemaMismatch)
-    Invocation #109: ✗ Failed  (SchemaMismatch)
-    Invocation #110: ✗ Failed  (SchemaMismatch)
-    Invocation #111: ✗ Failed  (SchemaMismatch)
-    Invocation #112: ✗ Failed  (SchemaMismatch)
-    Invocation #113: ✗ Failed  (SchemaMismatch)
-    Invocation #114: ✗ Failed  (SchemaMismatch)
-    Invocation #115: ✗ Failed  (SchemaMismatch)  ◄─── Drift detected!
-    
-    Recent success rate:      5/20  (25.0%)  ◄─── Spike!
-    
-    
-    DRIFT DETECTION TRIGGERED
-    ─────────────────────────────────────────────────────────────────
-    Condition: recent_success < 0.5 × historical_success
-    
-    Calculation:
-      Historical success:  90.4%
-      Recent success:      25.0%
-      Threshold:          0.5 × 90.4% = 45.2%
-      
-      25.0% < 45.2%  ✓ DRIFT DETECTED
-    
-    Statistical confidence: >95% (binomial test, p < 0.05)
-    
-    Error classification:
-      SchemaMismatch: 15/15 (100%)  ◄─── Pattern recognized
-      
-    Evidence preserved: ~/.dex/flows/gmail/recent-emails.sh.stderr
-      "Error: Cannot read property 'content' of undefined"
-      "Expected: $.result.content[0].text"
-      "Actual structure changed"
-    
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ AGENT WARNING (Invocation #115)                                         │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-    $ ~/.dex/flows/gmail/recent-emails.sh 5
-    
-    [WARNING] Flow shows environmental drift
-    
-    Flow: gmail/recent-emails.sh
-    Historical success rate: 90%
-    Recent success rate:     25% (last 20 invocations)
-    
-    Likely cause: API schema changed
-    Error pattern: SchemaMismatch (15 consecutive failures)
-    
-    Evidence:
-      "Cannot read property 'content' of undefined"
-      "Expected path: $.result.content[0].text"
-      
-    Recommendation: Re-record action sequence
-      $ dex init gmail-recent-v2 --seq
-      [explore with new schema]
-      $ dex export gmail/recent-emails.sh --params max_results
-      
-    This will update the flow with current API structure.
-    
-    Show full error log? (y/n): _
-
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ WHAT HAPPENED                                                           │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │                                                                         │
-  │  • Flow worked perfectly for 100 invocations (90% success baseline)     │
-  │  • External API changed schema without notice                           │
-  │  • dex detected drift after 15 failures (statistical significance)      │
-  │  • Error classifier identified: SchemaMismatch (not transient)          │
-  │  • Evidence preserved for root cause analysis                           │
-  │  • Agent warned: "Re-learn this procedure, environment changed"         │
-  │  • Without drift detection: Silent repeated failures                    │
-  │  • With drift detection: Actionable re-learning signal                  │
-  │                                                                         │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-
-═══════════════════════════════════════════════════════════════════════════════
- FIGURE 5: PERFORMANCE COMPARISON - MEASURED IMPACT
-═══════════════════════════════════════════════════════════════════════════════
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ EXECUTION TIME                                                          │
-  │                                                                         │
-  │ First Time (Exploration)                                                │
-  │ ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 30 seconds                               │
-  │                                                                         │
-  │ Subsequent (Habit)                                                      │
-  │ ■■ 2 seconds                                                            │
-  │                                                                         │
-  │ Speedup: 15x (93% reduction)                                            │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ TOKEN USAGE                                                             │
-  │                                                                         │
-  │ First Time (Exploration)                                                │
-  │ ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 8,400 tokens                 │
-  │                                                                         │
-  │ Subsequent (Habit)                                                      │
-  │ ■ 250 tokens                                                            │
-  │                                                                         │
-  │ Reduction: 97% (8,150 tokens saved)                                     │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ CACHE PERFORMANCE                                                       │
-  │                                                                         │
-  │ HTTP re-execution (typical query iteration)                             │
-  │ ■■■■■■■■■■■■■■■■■■■■■■■■■ 500 milliseconds                              │
-  │                                                                         │
-  │ Cached query (dex response cache)                                       │
-  │ ▪ <100 microseconds                                                     │
-  │                                                                         │
-  │ Speedup: 5000x (learning iteration acceleration)                        │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ PARALLEL EXECUTION                                                      │
-  │                                                                         │
-  │ Sequential (5 message fetches)                                          │
-  │ ■■■■■■■■■■■■■■■■■■■■■■■■■ 2.5 seconds                                   │
-  │                                                                         │
-  │ Parallel (automatic detection)                                          │
-  │ ■■■■■■■■■ 0.9 seconds                                                   │
-  │                                                                         │
-  │ Speedup: 2.8x (via DAG analysis + dex plan)                             │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ TEAM EFFICIENCY                                                         │
-  │                                                                         │
-  │ Without dex (5 agents explore same task)                                │
-  │ Agent 1: ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 30s                             │
-  │ Agent 2: ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 30s                             │
-  │ Agent 3: ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 30s                             │
-  │ Agent 4: ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 30s                             │
-  │ Agent 5: ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 30s                             │
-  │ Total: 150 seconds                                                      │
-  │                                                                         │
-  │ With dex (shared procedural memory)                                     │
-  │ Agent 1: ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 30s (learns)                    │
-  │ Agent 2: ■■ 2s (invokes)                                                │
-  │ Agent 3: ■■ 2s (invokes)                                                │
-  │ Agent 4: ■■ 2s (invokes)                                                │
-  │ Agent 5: ■■ 2s (invokes)                                                │
-  │ Total: 38 seconds                                                       │
-  │                                                                         │
-  │ Team efficiency: 75% reduction (112 seconds saved)                      │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-
-═══════════════════════════════════════════════════════════════════════════════
- FIGURE 6: COMMAND REFERENCE - dex CLI SYNTAX
-═══════════════════════════════════════════════════════════════════════════════
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ WORKSPACE MANAGEMENT                                                    │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │ dex init <name> [--seq|--par]     Create workspace (sequential/parallel)│
-  │ dex ls                             List all workspaces                  │
-  │ dex cd <name>                      Switch workspace context             │
-  │ dex clean <name>                   Remove workspace                     │
-  │ dex clear                          Clear current workspace state        │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ MCP OPERATIONS                                                          │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │ dex init-session <endpoint>        Initialize MCP session               │
-  │ dex tools <endpoint> [-s]          List available tools                 │
-  │ dex resources <endpoint> [-s]      List available resources             │
-  │ dex prompts <endpoint> [-s]        List available prompts               │
-  │ dex POST <endpoint> <json> [-s]    Execute tool call                    │
-  │ dex GET <endpoint> <uri> [-s]      Read resource                        │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ QUERY & EXTRACTION                                                      │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │ dex @N '<query>'                   Query cached response @N             │
-  │ dex @N '<query>' -s <var>          Store result in variable             │
-  │ dex @N '<query>' -r                Raw output (no JSON)                 │
-  │ dex @N '<query>' -m                MCP unwrap (extract content)         │
-  │ dex @ '<query>'                    Query most recent (@last)            │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ CONTROL FLOW                                                            │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │ dex is-error @N                    Check if response is error           │
-  │ dex exists @N '<path>'             Check if JSON path exists            │
-  │ dex has-session                    Check if session initialized         │
-  │ dex token-valid <endpoint>         Validate OAuth token                 │
-  │ dex is-empty @N '<path>'           Check if path is empty/null          │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ ADVANCED OPERATIONS                                                     │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │ dex for @N '<query>' CMD           Iterate over array, execute CMD      │
-  │ dex for @N '<query>' --parallel    Parallel iteration                   │
-  │ dex display @N..@M [--field ...]   Tabular display of responses         │
-  │ dex plan                           Show execution DAG                   │
-  │ dex stats                          Show token usage, timing             │
-  │ dex detect                         Run anti-pattern detection           │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ REIFICATION & DISCOVERY                                                 │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │ dex export <path> --params <list>  Export workspace as flow             │
-  │ dex flow search "<query>"          Semantic search for flows            │
-  │ dex flow list [--tag <tag>]        List all flows                       │
-  │ dex flow info <path>               Show flow metadata & metrics         │
-  │ dex guidance <server>              Show embedded guidance               │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ FLAGS                                                                   │
-  ├─────────────────────────────────────────────────────────────────────────┤
-  │ -s, --session                     Auto-inject session header            │
-  │ -t, --template                    Expand $variables in JSON             │
-  │ -r, --raw                         Raw output (no JSON wrapping)         │
-  │ -m, --mcp-unwrap                  Extract MCP content automatically     │
-  │ -p, --parallel                    Execute commands in parallel          │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-
-═══════════════════════════════════════════════════════════════════════════════
- APPENDIX: KEY INSIGHTS
-═══════════════════════════════════════════════════════════════════════════════
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ 1. DEVELOPER BEHAVIOR NEVER CHANGES                                     │
-  │                                                                         │
-  │    Developers continue to express intent in natural language.           │
-  │    No new syntax to learn. No workflow changes. Just faster results.    │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ 2. AGENTS GET SMARTER THROUGH STRUCTURED LEARNING                       │
-  │                                                                         │
-  │    dex observes agent behavior, caches responses, guides toward         │
-  │    correct patterns, and captures successful sequences as reusable      │
-  │    procedures. Learning happens through iteration, not prompting.       │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ 3. FIRST TIME: EXPLORATION (30s) · EVERY TIME AFTER: HABIT (2s)         │
-  │                                                                         │
-  │    Initial exploration has cost, but procedural memory amortizes it     │
-  │    across all future invocations. Break-even after 3 reuses.            │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ 4. PROCEDURAL MEMORY IS SHARED ACROSS ENTIRE TEAM                       │
-  │                                                                         │
-  │    One agent learns, all agents benefit. No duplicate exploration.      │
-  │    Team efficiency scales linearly with flow catalog size.              │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ 5. ADAPTIVE FORGETTING KEEPS MEMORY CURRENT                             │
-  │                                                                         │
-  │    Statistical drift detection signals when APIs change. Agents         │
-  │    receive actionable warnings to re-learn procedures rather than       │
-  │    silently fail. Memory evolves with environment.                      │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │ 6. NO LLM, NO PROMPTS, NO RUNTIME                                       │
-  │                                                                         │
-  │    dex uses deterministic logic: caching, DAG analysis, pattern         │
-  │    matching, statistical drift detection. Pure Rust, 8.1 MB binary.     │
-  │    Old-fashioned intelligence that actually works.                      │
-  └─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────┐
+│ AI Agent (Cursor, Claude, etc.) │
+└────────────┬────────────────────┘
+             │ natural language
+             ▼
+┌─────────────────────────────────────────────┐
+│ dex (learning substrate)                     │
+│  • Records action sequences                 │
+│  • Provides real-time correction hints      │
+│  • Stores successful sequences for replay   │
+│  • Caches responses for instant re-query    │
+└────────────┬────────────────────────────────┘
+             │ structured API calls
+             ▼
+┌─────────────────────────────────┐
+│ APIs (GitHub, Gmail, Stripe...) │
+└─────────────────────────────────┘
 ```
+
+**Key Insight:** First exploration takes 30 seconds and 8,400 tokens. Subsequent runs take 2 seconds and 250 tokens.
 
 ---
 
 ## Installation
 
-**Option 1: Install via curl (Recommended)**
+### Quick Install (Recommended)
 
 ```bash
-# Install latest version (v0.9.0+)
-curl -fsSL https://github.com/modiqo/dex-releases/releases/latest/download/install.sh | bash
-
-# Install specific version
-DEX_VERSION=0.9.0 curl -fsSL https://github.com/modiqo/dex-releases/releases/latest/download/install.sh | bash
-
-# Install to custom directory
-DEX_INSTALL_DIR=/usr/local/bin curl -fsSL https://github.com/modiqo/dex-releases/releases/latest/download/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/modiqo/dex-releases/main/install.sh | bash
 ```
 
-**Option 2: Download binary directly**
+### Platform-Specific
 
-Download pre-built binaries from [GitHub Releases](https://github.com/modiqo/dex-releases/releases):
-
-- **Linux x86_64**: `dex-linux-x86_64.tar.gz`
-- **Linux x86_64 (musl)**: `dex-linux-x86_64-musl.tar.gz` (static binary)
-- **Linux ARM64**: `dex-linux-aarch64.tar.gz`
-- **macOS Intel**: `dex-macos-x86_64.tar.gz`
-- **macOS Apple Silicon**: `dex-macos-aarch64.tar.gz`
-- **Windows x86_64**: `dex-windows-x86_64.zip`
+<details>
+<summary><b>macOS (Apple Silicon)</b></summary>
 
 ```bash
-# Example: Install on Linux
-wget https://github.com/modiqo/dex-releases/releases/latest/download/dex-linux-x86_64.tar.gz
-tar xzf dex-linux-x86_64.tar.gz
+curl -L https://github.com/modiqo/dex-releases/raw/main/releases/latest/dex-macos-aarch64.tar.gz | tar xz
 sudo mv dex /usr/local/bin/
+dex --version
 ```
+</details>
 
-**Option 3: Build from source**
+<details>
+<summary><b>macOS (Intel)</b></summary>
 
 ```bash
-# Clone the repository
-git clone https://github.com/modiqo/dex.git
-cd dex
+curl -L https://github.com/modiqo/dex-releases/raw/main/releases/latest/dex-macos-x86_64.tar.gz | tar xz
+sudo mv dex /usr/local/bin/
+dex --version
+```
+</details>
 
-# Build and install (base features)
-cargo install --path .
+<details>
+<summary><b>Linux (x86_64)</b></summary>
 
-# Build and install with enterprise features
-cargo install --path . --features enterprise
+```bash
+curl -L https://github.com/modiqo/dex-releases/raw/main/releases/latest/dex-linux-x86_64.tar.gz | tar xz
+sudo mv dex /usr/local/bin/
+dex --version
+```
+</details>
+
+---
+
+## Getting Started
+
+### Private Beta Access
+
+dex is currently in private beta. You'll need an invite code to register.
+
+```bash
+# 1. Join with your invite code
+dex join abc123-def456-ghi789
+
+# 2. Register with OAuth
+dex register --provider google
+
+# 3. Install powerpack (adapters and skills)
+dex pull powerpack --yes --with-skills
+```
+
+**Don't have an invite?** Email us: **ask@modiqo.ai**
+
+### Your First Workflow
+
+```bash
+# Start interactive onboarding
+dex how
+
+# Initialize a workspace
+dex init my-first-workflow --seq
+
+# Make an API call (example with GitHub adapter)
+dex POST adapter/github-api '{
+  "method": "tools/call",
+  "params": {
+    "name": "github_api_probe",
+    "arguments": {"query": "list repositories", "limit": 5}
+  }
+}' -s
+
+# Query the cached response
+dex @1 '.result.tools[].name' -r
+
+# Export as reusable flow
+dex export ~/.dex/flows/github/my-workflow.sh
 ```
 
 ---
 
-## Enterprise Features
+## Core Capabilities
 
-dex offers an **enterprise tier** with advanced endpoint analytics and monitoring capabilities, available as a feature flag during build.
+### 1. MCP Workflow Automation
 
-### **What's Included**
-
-**`dex ps`** - Endpoint Analytics & Monitoring
-
-Like `htop` for MCP endpoints - provides real-time visibility into endpoint health, performance, and usage patterns:
-
-- **Live Monitoring**: See all endpoint activity, success rates, and latency
-- **Detailed Statistics**: Deep dive into specific endpoints with p50/p95/p99 percentiles
-- **Error Analysis**: Identify error patterns across all endpoints
-- **Anomaly Detection**: Statistical detection of traffic spikes, latency degradation, and error rate changes
-- **Cost Attribution**: Track token usage and estimated costs per endpoint
-- **Time Windows**: Analyze historical data (1h, 24h, 7d, 30d)
-
-**Automatic Recording:**
-- Every HTTP request is automatically tracked (non-blocking, async)
-- Metrics stored in `~/.dex/storage/endpoints.db` (SQLite)
-- Zero configuration required
-- Privacy-first: All data stays local, no telemetry
-
-### **How to Enable**
-
-**During Development:**
-```bash
-# Build with enterprise features
-cargo build --features enterprise
-
-# Run tests with enterprise features
-cargo test --features enterprise
-
-# Build optimized release
-cargo build --features enterprise --release
-```
-
-**For Installation:**
-```bash
-# Install with enterprise features enabled
-cargo install --path . --features enterprise
-
-# Or from crates.io (when published)
-cargo install dex --features enterprise
-```
-
-### **Usage**
-
-Once enabled, use `dex ps` to monitor your MCP endpoints:
+Execute sequences of MCP calls with state management:
 
 ```bash
-# Live monitoring (all endpoints)
-dex ps
+# Initialize session
+dex init-session /github
 
-# Detailed endpoint analysis
-dex ps --endpoint /github-mcp --detailed
+# Make calls with session state
+dex POST /github '{"method":"tools/call",...}' -s
 
-# Error analysis across all endpoints
-dex ps --errors
-
-# Detect anomalies (traffic spikes, latency degradation)
-dex ps --anomalies
-
-# Custom time window
-dex ps --window 24h
-
-# Get help
-dex help ps
+# Query responses without re-executing
+dex @1 '.result.data' -r
+dex @1 '.result.items | length' -r
+dex @1 '.result.items[] | select(.active)' -r
 ```
 
-### **Example Output**
+**Result:** <100 microseconds per query vs 500ms for HTTP re-execution.
 
+### 2. Adapter Framework: Any REST API → MCP
+
+Transform any REST API into searchable MCP capabilities:
+
+```bash
+# Create adapter from OpenAPI spec
+dex adapter new github-api https://api.github.com/openapi.json --yes
+
+# Now you have 2 virtual MCP tools:
+# 1. github_api_probe - Search 1,111 operations semantically
+# 2. github_api_call - Execute discovered operations
+
+# Search for capability
+dex POST adapter/github-api '{
+  "method": "tools/call",
+  "params": {
+    "name": "github_api_probe",
+    "arguments": {"query": "create repository", "limit": 5}
+  }
+}' -s
+
+# Execute discovered tool
+dex POST adapter/github-api '{
+  "method": "tools/call",
+  "params": {
+    "name": "github_api_call",
+    "arguments": {
+      "tool_name": "repos/create",
+      "arguments": {"name": "my-project", "owner": "myorg"}
+    }
+  }
+}' -s
 ```
-Endpoint Analytics (last 1h)
 
-✓ /github-mcp:
-  Requests           47
-  Success            98.0%
-  Errors             1 (2.0%)
-  p50 latency        245ms
-  p95 latency        680ms
-  Cost               $0.0904
+**Supported:** OpenAPI 3.x, Google Discovery, GraphQL SDL, gRPC
 
-⚠ /stripe-mcp:
-  Requests           12
-  Success            75.0%
-  Errors             3 (25.0%)
-  p50 latency        892ms
-  p95 latency        1840ms
-  Cost               $0.0077
+**Value:** No custom MCP server needed. Any API becomes MCP-compatible in seconds.
+
+### 3. Skills: Reusable Workflows
+
+Skills are parameterized workflows that can depend on adapters:
+
+```bash
+# Pull a skill from registry
+dex registry skill pull github-issue-creator
+
+# Skill declares dependencies:
+# - Requires: github_api adapter (fingerprint: mcp_abc123...)
+# - Auto-installs missing dependencies
+
+# Run the skill
+~/.dex/skills/github-issue-creator.sh "Bug in login" "Steps to reproduce..."
+
+# Skills compose:
+# - Skill A uses Adapter X
+# - Skill B uses Adapter Y + Skill A
+# - Exponential value through composition
 ```
 
-### **Technical Details**
+**Power:** Skills + Adapters = Compounding Value
 
-- **Storage**: SQLite database at `~/.dex/storage/endpoints.db`
-- **Binary Size**: Adds ~3 MB (11 MB total with enterprise vs 8 MB base)
-- **Performance**: <5ms write latency, <10ms query latency
-- **Privacy**: All data local, no external telemetry
-- **Dependencies**: Bundled SQLite (no external deps)
+### 4. Flow Export: Exploration → Automation
 
-### **Documentation**
+Convert successful explorations into reusable scripts:
 
-Full documentation available in `docs/metrics/`:
-- `README.md` - Overview and architecture
-- `SQLITE_FINAL.md` - Implementation details
-- `endpoint_analytics.md` - Design specification
+```bash
+# After exploring a workflow
+dex export ~/.dex/flows/my-workflow.sh \
+  --params owner,repo,state \
+  --description "Fetch GitHub issues" \
+  --composable
+
+# Reuse instantly
+~/.dex/flows/my-workflow.sh facebook react open
+
+# Fork with new parameters (~3 seconds vs 30s from scratch)
+dex flow fork ~/.dex/flows/my-workflow.sh \
+  --as my-variant \
+  --params owner=google,repo=chrome \
+  --replay
+```
+
+**Result:** 95%+ token savings on repeat tasks.
+
+### 5. Browser Automation
+
+Automate web interactions via Playwright:
+
+```bash
+# Navigate and snapshot (CRITICAL: snapshot first!)
+dex browse --headed https://example.com
+
+# Query efficiently (95-99% token savings)
+dex browser-extract @1 button
+dex browser-find @1 --text "search"
+
+# Interact using discovered refs
+dex browse click <ref>
+
+# Export workflow
+dex export ~/.dex/flows/web/my-automation.sh
+```
+
+**Pattern:** Navigate → Snapshot → Understand → Interact
 
 ---
 
-## Learn More
+## The Power of Composition
 
-- **Documentation:** [https://getdex.dev](https://getdex.dev)
-- **Repository:** [https://github.com/modiqo/dex](https://github.com/modiqo/dex)
-- **License:** MIT
-- **Author:** Chetan Conikee <chetan@modiqo.ai>
+### Adapters + Skills = Exponential Value
+
+**Level 1: Adapters**
+- GitHub API → `github_api` adapter
+- Stripe API → `stripe_api` adapter
+- Twilio API → `twilio_api` adapter
+
+**Level 2: Skills (Using Adapters)**
+- `github-issue-creator` (uses github_api)
+- `payment-processor` (uses stripe_api)
+- `sms-notifier` (uses twilio_api)
+
+**Level 3: Composite Skills (Using Skills + Adapters)**
+- `bug-to-payment` (uses github-issue-creator + payment-processor)
+- `deploy-and-notify` (uses multiple skills + adapters)
+
+**Result:** Each layer multiplies value. 3 adapters × 10 skills = 30 capabilities. Add 5 composite skills = 150+ workflows.
+
+### Real Example
+
+```bash
+# Install GitHub adapter
+dex adapter new github-api https://api.github.com/openapi.json --yes
+
+# Install skill that uses it
+dex registry skill pull github-issue-creator
+
+# Skill automatically:
+# 1. Checks for github_api adapter (by fingerprint)
+# 2. Installs if missing
+# 3. Runs workflow using adapter
+
+# Now you can:
+~/.dex/skills/github-issue-creator.sh "Bug title" "Description"
+
+# And other skills can use github-issue-creator:
+~/.dex/skills/bug-tracker.sh  # Uses github-issue-creator internally
+```
 
 ---
+
+## Key Features
+
+### Embedded Guidance
+
+Self-contained documentation, no external lookups:
+
+```bash
+dex how                          # Interactive onboarding
+dex guidance agent essential     # 700-line agent guide
+dex guidance adapters essential  # Adapter framework guide
+dex guidance browser essential   # Browser automation guide
+dex grammar query                # Query syntax examples
+dex machine workspace            # Architecture deep-dive
+```
+
+### 98% jq Compatibility
+
+No external tools needed:
+
+```bash
+# Extract
+dex @1 '.items[].name' -r
+
+# Filter
+dex @1 '.items[] | select(.active)' -r
+
+# Transform
+dex @1 '.items | map(.name)' -r
+dex @1 '.items | sort_by(.score)' -r
+dex @1 '.items | group_by(.type)' -r
+
+# Aggregate
+dex @1 '.scores | sum' -r
+dex @1 '.prices | min' -r
+dex @1 '.ratings | avg' -r
+
+# Multi-response
+dex aggregate @2..@50 '$.contact' --filter 'status == active'
+```
+
+### TypeScript Transformations (90/8/2 Rule)
+
+- **90%** of tasks: Use native dex (~5ms)
+- **8%** of tasks: Inline TypeScript (~70-200ms)
+- **2%** of tasks: External files (>20 lines, reusable)
+
+```bash
+# Native (fast)
+dex @1 '.items[] | select(.active)' -r
+
+# Inline TypeScript (when needed)
+dex @1 '$' --transform-ts 'return response.filter(x => x.score > 0.8)'
+
+# With curated packages
+dex @1 '$' --transform-ts 'import { format } from "dex:date-fns"; return format(data.date, "yyyy-MM-dd")'
+```
+
+### Flow Search & Reuse
+
+Don't rebuild existing workflows:
+
+```bash
+# Search before building
+dex flow search "fetch github issues"
+
+# Found? Run it from /tmp
+cd /tmp
+~/.dex/flows/github/fetch-issues.sh facebook react open
+
+# Not found? Build, then export
+dex init my-workflow --seq
+# ... explore ...
+dex export ~/.dex/flows/my-workflow.sh
+```
+
+---
+
+## Performance
+
+```
+┌──────────────────────────────────────────────────┐
+│ METRICS                                          │
+├──────────────────────────────────────────────────┤
+│ First Exploration:  30 seconds · 8,400 tokens   │
+│ Subsequent Runs:    2 seconds  · 250 tokens     │
+│                                                  │
+│ Cache Query Time:   <100 microseconds           │
+│ Flow Export Size:   <500 bytes (binary)         │
+│ Token Savings:      90-97% on repeat tasks      │
+└──────────────────────────────────────────────────┘
+```
+
+---
+
+## Use Cases
+
+### For AI Agents
+
+- **Workflow Automation:** Execute multi-step MCP sequences
+- **Response Caching:** Query API responses without re-execution
+- **Flow Reuse:** Search and reuse existing workflows
+- **Error Recovery:** Real-time hints for common mistakes
+
+### For Developers
+
+- **API Integration:** Any REST API → MCP in seconds
+- **Skill Distribution:** Share reusable workflows via registry
+- **Browser Automation:** Playwright workflows with export
+- **Testing:** Deterministic replay of API sequences
+
+### For Teams
+
+- **Knowledge Sharing:** Export successful workflows as skills
+- **Onboarding:** New agents learn from existing flows
+- **Standardization:** Consistent API interaction patterns
+- **Cost Reduction:** 90%+ token savings across team
+
+---
+
+## Architecture
+
+### Three-Layer System
+
+**Layer 1: Adapters** (API → MCP)
+- Transform REST APIs into MCP capabilities
+- Semantic search across 1,000+ operations
+- Production-ready middleware (rate limiting, retry, circuit breakers)
+
+**Layer 2: Skills** (Workflows)
+- Parameterized, reusable workflows
+- Declare adapter dependencies (by fingerprint)
+- Auto-install missing dependencies
+- Compose with other skills
+
+**Layer 3: Registry** (Distribution)
+- Multi-tenant artifact registry (Supabase-based)
+- Organizations (private) and Communities (public)
+- Full-text search across adapters and skills
+- Dependency resolution and version management
+
+### Workspace Isolation
+
+Each task gets its own isolated sandbox:
+- Responses cached as `@1`, `@2`, `@3`...
+- Variables stored as `$name=value`
+- Independent MCP sessions
+- Separate cache namespace
+
+**No interference between tasks. Full isolation. Clean state.**
+
+---
+
+## Command Reference
+
+### Essential Commands
+
+```bash
+# Onboarding
+dex how                          # Interactive guide
+dex start                        # Protocol checklist
+dex guidance agent essential     # 700-line guide
+
+# Workflow
+dex init <name> --seq            # Create workspace
+dex POST /endpoint '{}' -s       # Execute with session
+dex @N '<query>' -r              # Query cached response
+dex export <path> --params x,y   # Export as reusable flow
+
+# Discovery
+dex flow search "intent"         # Find existing flows
+dex explore "intent"             # Cross-adapter tool search
+dex inventory                    # List all endpoints
+
+# Adapters
+dex adapter new <id> <spec>      # Create from OpenAPI
+dex adapter list                 # List installed adapters
+
+# Skills
+dex registry skill search "query" # Search registry
+dex registry skill pull <name>    # Install skill
+dex registry skill push <file>    # Publish skill
+
+# Browser
+dex browse --headed <url>        # Navigate and snapshot
+dex browser-extract @N button    # Extract elements
+dex browse click <ref>           # Interact
+
+# Reference
+dex grammar <topic>              # Command examples
+dex machine <topic>              # Architecture guides
+```
+
+---
+
+## Examples
+
+### Example 1: GitHub Issues Workflow
+
+```bash
+# Initialize
+dex init github-issues --seq
+cd ~/.dex/workspaces/github-issues
+
+# Set parameters
+dex set owner=facebook repo=react state=open
+
+# Search for capability
+dex POST adapter/github-api '{
+  "method": "tools/call",
+  "params": {
+    "name": "github_api_probe",
+    "arguments": {"query": "list issues", "limit": 5}
+  }
+}' -s
+
+# Execute discovered tool
+dex POST adapter/github-api '{
+  "method": "tools/call",
+  "params": {
+    "name": "github_api_call",
+    "arguments": {
+      "tool_name": "issues/list",
+      "arguments": {"owner": "$owner", "repo": "$repo", "state": "$state"}
+    }
+  }
+}' -t -s
+
+# Query results
+dex @2 '.items[].title' -r
+
+# Export for reuse
+dex export ~/.dex/flows/github/list-issues.sh \
+  --params owner,repo,state \
+  --description "Fetch GitHub issues"
+```
+
+**Reuse:**
+```bash
+cd /tmp
+~/.dex/flows/github/list-issues.sh facebook react open
+```
+
+### Example 2: Skill Composition
+
+```bash
+# Install base adapter
+dex adapter new github-api https://api.github.com/openapi.json --yes
+
+# Install skill that uses adapter
+dex registry skill pull github-issue-creator
+
+# Skill automatically checks for github_api adapter
+# If missing, prompts to install
+
+# Use skill
+~/.dex/skills/github-issue-creator.sh "Bug in login" "Steps: 1. Go to /login 2. Click submit"
+
+# Install composite skill
+dex registry skill pull bug-tracker
+
+# This skill uses github-issue-creator internally
+# Plus adds notification, assignment, labeling
+~/.dex/skills/bug-tracker.sh "Critical bug" "Production down"
+```
+
+**Value Multiplication:**
+- 1 adapter (github_api) → 1,111 operations
+- 10 skills using adapter → 10 workflows
+- 5 composite skills → 50+ capabilities
+- Total: 1,111 + 10 + 50 = 1,171 capabilities from 1 adapter
+
+---
+
+## Why dex?
+
+### Problem: Token Waste
+
+Traditional approach:
+```
+Agent: "Fetch GitHub issues"
+→ Lists all 1,111 GitHub operations (80K tokens)
+→ Picks one operation
+→ Makes API call
+→ Parses response
+→ Total: 30 seconds, 8,400 tokens
+
+Next time: Repeat everything (no memory)
+```
+
+### Solution: Learning Substrate
+
+With dex:
+```
+First time:
+→ dex flow search "fetch github issues"
+→ Not found, explore and export
+→ 30 seconds, 8,400 tokens
+
+Second time:
+→ dex flow search "fetch github issues"
+→ Found! Run existing flow
+→ 2 seconds, 250 tokens (97% savings)
+
+Subsequent times: Same 2 seconds, 250 tokens
+```
+
+### Problem: MCP Infrastructure Gap
+
+**Traditional:** Each API needs a custom MCP server
+- GitHub → Custom server
+- Stripe → Custom server
+- Twilio → Custom server
+- Result: Maintenance burden, token waste
+
+**With Adapters:** One framework for all APIs
+- Any OpenAPI spec → Adapter in seconds
+- 2 virtual tools: `{adapter}_probe` + `{adapter}_call`
+- Semantic search across all operations
+- Result: Universal API access
+
+### Problem: Workflow Silos
+
+**Traditional:** Each agent starts from scratch
+- Agent A explores GitHub workflow
+- Agent B explores same workflow
+- Agent C explores same workflow
+- Result: 3× cost, 3× time
+
+**With Skills:** Agents learn from each other
+- Agent A explores and exports skill
+- Agent B searches registry, finds skill, reuses
+- Agent C searches registry, finds skill, reuses
+- Result: 1× cost, instant reuse
+
+---
+
+## Advanced Features
+
+### Parallel Execution
+
+```bash
+# Execute multiple calls in parallel
+dex for @1 '.items[]' --parallel POST /api '{"id": "$"}' -t -s
+
+# 10 items = 10 parallel requests = 3-10x faster
+```
+
+### Dependency Tracking
+
+```bash
+# Track variable sources
+dex @1 '.name' -s tool_name    # Tracks: tool_name ← @1.name
+
+# Use in templates
+dex POST /api '{"tool":"$tool_name"}' -t -s
+
+# View dependency graph
+dex ls --show-dependencies
+
+# Export knows dependencies automatically
+dex export flow.sh --params tool_name
+```
+
+### Anti-Pattern Detection
+
+```bash
+# Detect common mistakes
+dex detect
+
+# 16 patterns detected:
+# - Using jq instead of native dex
+# - Missing -s flag on POST
+# - Hardcoded values (should be params)
+# - Inefficient query patterns
+```
+
+### Model Tracking
+
+```bash
+# Set your model identity
+dex model set claude-sonnet-4.5 --provider anthropic
+
+# Track which models explore which workflows
+# Enables performance comparison and debugging
+```
+
+---
+
+## Registry System
+
+### Multi-Tenant Architecture
+
+**Organizations** (Private)
+- Role-based access (owner/admin/developer/reader)
+- Team isolation
+- Private by default
+
+**Communities** (Public)
+- Anyone can join
+- Subscription-based
+- Public by default
+
+### Publishing
+
+```bash
+# Create organization
+dex registry org create my-company
+
+# Push adapter
+dex registry adapter push my-adapter.adapt my-company
+
+# Push skill
+dex registry skill push my-skill.sh my-company
+
+# Or publish to community
+dex registry community subscribe powerpack
+dex registry skill push my-skill.sh powerpack
+```
+
+### Discovery
+
+```bash
+# Search adapters
+dex registry adapter search "github api"
+
+# Search skills
+dex registry skill search "create issue"
+
+# Pull and install
+dex registry skill pull github-issue-creator
+```
+
+---
+
+## Documentation
+
+### Built-In Guides
+
+```bash
+dex how                          # Onboarding flow
+dex start                        # Protocol checklist
+dex guidance agent essential     # Essential agent guide (700 lines)
+dex guidance adapters essential  # Adapter framework guide
+dex guidance browser essential   # Browser automation guide
+```
+
+### Command Examples
+
+```bash
+dex grammar query                # Query syntax (jq-compatible)
+dex grammar http                 # HTTP requests
+dex grammar session              # Session management
+dex grammar iteration            # Loops and parallel
+dex grammar deno                 # TypeScript transformations
+```
+
+### Architecture
+
+```bash
+dex machine workspace            # How workspaces work
+dex machine adapters             # Adapter architecture
+dex machine typescript           # TypeScript integration
+dex machine mcp                  # MCP session management
+dex machine story                # Complete workflow story
+```
+
+---
+
+## Platform Support
+
+- **macOS** - Apple Silicon (M1/M2/M3) and Intel
+- **Linux** - x86_64 (Ubuntu, Debian, Fedora, RHEL, etc.)
+- **Windows** - Coming soon
+
+**Binary Size:** 8-15 MB (depending on features)  
+**Dependencies:** Zero runtime dependencies  
+**Language:** Pure Rust (no C bindings)
+
+---
+
+## Security
+
+### Binary Verification
+
+```bash
+# Download with checksum
+curl -LO https://github.com/modiqo/dex-releases/raw/main/releases/latest/dex-macos-aarch64.tar.gz
+curl -LO https://github.com/modiqo/dex-releases/raw/main/releases/latest/dex-macos-aarch64.tar.gz.sha256
+
+# Verify
+sha256sum -c dex-macos-aarch64.tar.gz.sha256
+```
+
+### Invite System
+
+Private beta access with:
+- Invite codes (72 bits entropy)
+- Rate limiting (10 attempts/IP/minute)
+- RLS policies for access control
+- Referral tracking (5 invites per user)
+
+---
+
+## Updates
+
+### Check Version
+
+```bash
+dex --version
+```
+
+### Update to Latest
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/modiqo/dex-releases/main/install.sh | bash
+```
+
+---
+
+## Community
+
+- **Email:** ask@modiqo.ai
+- **Private Beta:** Request invite code
+- **Issues:** Contact via email
+- **Documentation:** Run `dex guidance` after installation
+
+---
+
+## FAQ
+
+**Q: What makes dex different from other MCP tools?**  
+A: dex is a learning substrate. It doesn't just execute MCP calls - it learns from successful explorations and makes them reusable. Agents learn from each other.
+
+**Q: Do I need to write MCP servers for my APIs?**  
+A: No. Use the adapter framework to transform any OpenAPI spec into MCP capabilities in seconds.
+
+**Q: Can I share workflows with my team?**  
+A: Yes. Export flows as skills and publish to your organization or community in the registry.
+
+**Q: How does the 90%+ token savings work?**  
+A: First exploration is cached. Subsequent runs query the cache (<100 microseconds) instead of re-executing HTTP calls (500ms). Plus, exported flows are parameterized and reusable.
+
+**Q: What's the difference between adapters and skills?**  
+A: Adapters transform APIs into MCP. Skills are workflows that use adapters. Skills can depend on other skills, creating compounding value.
+
+**Q: Is my data private?**  
+A: Yes. Workspaces are local. Registry is opt-in. You control what you publish.
+
+---
+
+## License
+
+See LICENSE file in this repository.
+
+---
+
+## About
+
+dex is developed by Modiqo. It's designed to let agents learn from each other through embedded guidance and self-reflective languages.
+
+**Website:** https://modiqo.ai  
+**Releases:** https://github.com/modiqo/dex-releases  
+**Source:** Private (this is a releases-only repository)
+
+---
+
+**Current Version:** v0.12.0 - Private Beta Launch  
+**Status:** Production Ready  
+**Platforms:** macOS (Intel + Apple Silicon), Linux (x86_64)
