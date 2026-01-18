@@ -174,21 +174,6 @@ install_dex() {
         log_warn "dex command not found in PATH. You may need to restart your shell."
     fi
 
-    echo
-    echo "========================================="
-    echo "  ${YELLOW}Plot twist:${NC} We're not AGI yet."
-    echo "  ${YELLOW}Humans still required.${NC}"
-    echo "========================================="
-    echo
-    log_info "Run ${GREEN}dex human${NC} to see your journey"
-    echo "  (We'll tell you what to do next. Promise it's fun.)"
-    echo
-    log_info "Or skip ahead to:"
-    echo "  1. Set up shell integration: dex shell-setup"
-    echo "  2. Read the quick start: dex guidance agent essential"
-    echo "  3. Create your first flow: dex init my-flow --seq"
-    echo
-    
     # Initialize baseline stdio MCP servers
     if command -v dex >/dev/null 2>&1; then
         echo
@@ -226,6 +211,17 @@ install_dex() {
             log_info "Skipped shell setup. Run later: dex shell-setup"
         fi
     fi
+
+    # Fun message at the very end
+    echo
+    echo "========================================="
+    echo "  ${YELLOW}Plot twist:${NC} We're not AGI yet."
+    echo "  ${YELLOW}Humans still required.${NC}"
+    echo "========================================="
+    echo
+    log_info "Run ${GREEN}dex human${NC} to see your journey"
+    echo "  (We'll tell you what to do next. Promise it's fun.)"
+    echo
 }
 
 # Main
