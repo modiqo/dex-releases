@@ -215,11 +215,11 @@ install_dex() {
     # Fun message at the very end
     echo
     echo "========================================="
-    echo "  ${YELLOW}Plot twist:${NC} We're not AGI yet."
-    echo "  ${YELLOW}Humans still required.${NC}"
+    echo -e "  ${YELLOW}Plot twist:${NC} We're not AGI yet."
+    echo -e "  ${YELLOW}Humans still required.${NC}"
     echo "========================================="
     echo
-    log_info "Run ${GREEN}dex human${NC} to see your journey"
+    echo -e "[INFO] Run ${GREEN}dex human${NC} to see your journey"
     echo "  (We'll tell you what to do next. Promise it's fun.)"
     echo
 }
