@@ -62,26 +62,26 @@ detect_platform() {
             ;;
     esac
 
-    # Determine target triple
+    # Determine artifact name (matches GitHub Actions artifact names)
     case "$OS-$ARCH" in
         linux-x86_64)
-            TARGET="x86_64-unknown-linux-gnu"
+            ARTIFACT="dex-linux-x86_64"
             ARCHIVE_EXT="tar.gz"
             ;;
         linux-aarch64)
-            TARGET="aarch64-unknown-linux-gnu"
+            ARTIFACT="dex-linux-aarch64"
             ARCHIVE_EXT="tar.gz"
             ;;
         macos-x86_64)
-            TARGET="x86_64-apple-darwin"
+            ARTIFACT="dex-macos-x86_64"
             ARCHIVE_EXT="tar.gz"
             ;;
         macos-aarch64)
-            TARGET="aarch64-apple-darwin"
+            ARTIFACT="dex-macos-aarch64"
             ARCHIVE_EXT="tar.gz"
             ;;
         windows-x86_64)
-            TARGET="x86_64-pc-windows-msvc"
+            ARTIFACT="dex-windows-x86_64"
             ARCHIVE_EXT="zip"
             ;;
         *)
@@ -91,7 +91,7 @@ detect_platform() {
             ;;
     esac
 
-    log_info "Detected platform: $OS-$ARCH ($TARGET)"
+    log_info "Detected platform: $OS-$ARCH"
 }
 
 # Get latest version
@@ -109,11 +109,11 @@ get_latest_version() {
 
 # Download and install
 install_dex() {
-    local download_url="https://github.com/$REPO/releases/download/v${VERSION}/dex-${TARGET}.${ARCHIVE_EXT}"
+    local download_url="https://github.com/$REPO/releases/download/v${VERSION}/${ARTIFACT}.${ARCHIVE_EXT}"
     local tmp_dir=$(mktemp -d)
     local archive_file="$tmp_dir/dex.${ARCHIVE_EXT}"
 
-    log_info "Downloading dex v${VERSION} for ${TARGET}..."
+    log_info "Downloading dex v${VERSION}..."
     log_info "URL: $download_url"
 
     if ! curl -fsSL "$download_url" -o "$archive_file"; then
