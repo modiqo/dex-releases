@@ -1,68 +1,233 @@
 #!/bin/bash
-# dex installer script
-
 set -e
 
-VERSION="${VERSION:-latest}"
-INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+# dex installation script
+# Usage: curl -fsSL https://github.com/modiqo/dex-releases/releases/latest/download/install.sh | bash
+
+# Configuration
+REPO="modiqo/dex-releases"
+INSTALL_DIR="${DEX_INSTALL_DIR:-$HOME/.local/bin}"
+VERSION="${DEX_VERSION:-latest}"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Helper functions
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
 
 # Detect OS and architecture
-OS="$(uname -s)"
-ARCH="$(uname -m)"
+detect_platform() {
+    local os=$(uname -s | tr '[:upper:]' '[:lower:]')
+    local arch=$(uname -m)
 
-case "$OS" in
-  Darwin)
-    case "$ARCH" in
-      arm64|aarch64)
-        ARTIFACT="dex-macos-aarch64.tar.gz"
-        ;;
-      x86_64)
-        ARTIFACT="dex-macos-x86_64.tar.gz"
-        ;;
-      *)
-        echo "Unsupported architecture: $ARCH"
-        exit 1
-        ;;
+    case "$os" in
+        linux)
+            OS="linux"
+            ;;
+        darwin)
+            OS="macos"
+            ;;
+        mingw* | msys* | cygwin*)
+            OS="windows"
+            ;;
+        *)
+            log_error "Unsupported operating system: $os"
+            exit 1
+            ;;
     esac
-    ;;
-  Linux)
-    case "$ARCH" in
-      x86_64)
-        ARTIFACT="dex-linux-x86_64.tar.gz"
-        ;;
-      *)
-        echo "Unsupported architecture: $ARCH"
-        exit 1
-        ;;
-    esac
-    ;;
-  *)
-    echo "Unsupported OS: $OS"
-    exit 1
-    ;;
-esac
 
-echo "Installing dex $VERSION for $OS $ARCH..."
+    case "$arch" in
+        x86_64 | amd64)
+            ARCH="x86_64"
+            ;;
+        aarch64 | arm64)
+            ARCH="aarch64"
+            ;;
+        *)
+            log_error "Unsupported architecture: $arch"
+            exit 1
+            ;;
+    esac
+
+    # Determine target triple
+    case "$OS-$ARCH" in
+        linux-x86_64)
+            TARGET="x86_64-unknown-linux-gnu"
+            ARCHIVE_EXT="tar.gz"
+            ;;
+        linux-aarch64)
+            TARGET="aarch64-unknown-linux-gnu"
+            ARCHIVE_EXT="tar.gz"
+            ;;
+        macos-x86_64)
+            TARGET="x86_64-apple-darwin"
+            ARCHIVE_EXT="tar.gz"
+            ;;
+        macos-aarch64)
+            TARGET="aarch64-apple-darwin"
+            ARCHIVE_EXT="tar.gz"
+            ;;
+        windows-x86_64)
+            TARGET="x86_64-pc-windows-msvc"
+            ARCHIVE_EXT="zip"
+            ;;
+        *)
+            log_error "No prebuilt binary for $OS-$ARCH"
+            log_info "You can build from source: https://github.com/modiqo/dex"
+            exit 1
+            ;;
+    esac
+
+    log_info "Detected platform: $OS-$ARCH ($TARGET)"
+}
+
+# Get latest version
+get_latest_version() {
+    if [ "$VERSION" = "latest" ]; then
+        log_info "Fetching latest version..."
+        VERSION=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+        if [ -z "$VERSION" ]; then
+            log_error "Failed to fetch latest version"
+            exit 1
+        fi
+        log_info "Latest version: v$VERSION"
+    fi
+}
 
 # Download and install
-DOWNLOAD_URL="https://github.com/modiqo/dex-releases/raw/main/releases/$VERSION/$ARTIFACT"
+install_dex() {
+    local download_url="https://github.com/$REPO/releases/download/v${VERSION}/dex-${TARGET}.${ARCHIVE_EXT}"
+    local tmp_dir=$(mktemp -d)
+    local archive_file="$tmp_dir/dex.${ARCHIVE_EXT}"
 
-echo "Downloading from: $DOWNLOAD_URL"
-curl -fsSL "$DOWNLOAD_URL" | tar xz
+    log_info "Downloading dex v${VERSION} for ${TARGET}..."
+    log_info "URL: $download_url"
 
-# Install
-if [ -w "$INSTALL_DIR" ]; then
-  mv dex "$INSTALL_DIR/"
-else
-  sudo mv dex "$INSTALL_DIR/"
-fi
+    if ! curl -fsSL "$download_url" -o "$archive_file"; then
+        log_error "Download failed"
+        rm -rf "$tmp_dir"
+        exit 1
+    fi
 
-echo ""
-echo "✓ dex installed successfully!"
-echo ""
-echo "Verify installation:"
-echo "  dex --version"
-echo ""
-echo "Get started:"
-echo "  dex join <your-invite-code>"
-echo "  dex register --provider google"
+    log_info "Extracting archive..."
+    cd "$tmp_dir"
+    
+    case "$ARCHIVE_EXT" in
+        tar.gz)
+            tar xzf "$archive_file"
+            ;;
+        zip)
+            unzip -q "$archive_file"
+            ;;
+    esac
+
+    # Create install directory if it doesn't exist
+    mkdir -p "$INSTALL_DIR"
+
+    # Install binary
+    log_info "Installing to $INSTALL_DIR/dex..."
+    if [ "$OS" = "windows" ]; then
+        mv dex.exe "$INSTALL_DIR/dex.exe"
+        chmod +x "$INSTALL_DIR/dex.exe"
+        BINARY_PATH="$INSTALL_DIR/dex.exe"
+    else
+        mv dex "$INSTALL_DIR/dex"
+        chmod +x "$INSTALL_DIR/dex"
+        BINARY_PATH="$INSTALL_DIR/dex"
+    fi
+
+    # Cleanup
+    rm -rf "$tmp_dir"
+
+    log_info "${GREEN}✓${NC} dex v${VERSION} installed successfully!"
+    echo
+    log_info "Binary location: $BINARY_PATH"
+    
+    # Check if install dir is in PATH
+    if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
+        log_warn "$INSTALL_DIR is not in your PATH"
+        echo
+        echo "Add this to your shell profile (~/.bashrc, ~/.zshrc, etc.):"
+        echo "  export PATH=\"$INSTALL_DIR:\$PATH\""
+        echo
+    fi
+
+    # Verify installation
+    if command -v dex >/dev/null 2>&1; then
+        echo "Verify installation:"
+        echo "  $ dex --version"
+        dex --version 2>/dev/null || log_warn "Could not verify version (check PATH)"
+    else
+        log_warn "dex command not found in PATH. You may need to restart your shell."
+    fi
+
+    echo
+    echo "========================================="
+    echo "  ${YELLOW}Plot twist:${NC} We're not AGI yet."
+    echo "  ${YELLOW}Humans still required.${NC}"
+    echo "========================================="
+    echo
+    log_info "Run ${GREEN}dex human${NC} to see your journey"
+    echo "  (We'll tell you what to do next. Promise it's fun.)"
+    echo
+    log_info "Or skip ahead to:"
+    echo "  1. Set up shell integration: dex shell-setup"
+    echo "  2. Read the quick start: dex guidance agent essential"
+    echo "  3. Create your first flow: dex init my-flow --seq"
+    echo
+    
+    # Offer to run shell-setup automatically
+    if command -v dex >/dev/null 2>&1; then
+        echo -n "Set up shell integration now? (completions, dex-cd) [Y/n] "
+        read -r response
+        response=${response:-Y}
+        
+        if [ "$response" = "Y" ] || [ "$response" = "y" ]; then
+            echo
+            log_info "Running dex shell-setup..."
+            if dex shell-setup 2>/dev/null; then
+                echo
+                log_info "${GREEN}✓${NC} Shell integration configured!"
+                echo
+                echo "Add this line to your shell config (~/.zshrc or ~/.bashrc):"
+                echo "  [ -f ~/.dex/shell/init.sh ] && source ~/.dex/shell/init.sh"
+                echo
+                echo "Then restart your shell or run: source ~/.zshrc"
+            else
+                log_warn "Shell setup failed. Run manually: dex shell-setup"
+            fi
+        else
+            echo
+            log_info "Skipped shell setup. Run later: dex shell-setup"
+        fi
+    fi
+}
+
+# Main
+main() {
+    echo "========================================="
+    echo "  dex Installer"
+    echo "  Execution Context Engineering"
+    echo "========================================="
+    echo
+
+    detect_platform
+    get_latest_version
+    install_dex
+}
+
+main
+
