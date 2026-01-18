@@ -189,8 +189,20 @@ install_dex() {
     echo "  3. Create your first flow: dex init my-flow --seq"
     echo
     
+    # Initialize baseline stdio MCP servers
+    if command -v dex >/dev/null 2>&1; then
+        echo
+        log_info "Initializing baseline stdio MCP servers..."
+        if dex stdio init-baseline 2>/dev/null; then
+            log_info "${GREEN}✓${NC} stdio servers configured"
+        else
+            log_warn "stdio initialization failed (run manually: dex stdio init-baseline)"
+        fi
+    fi
+    
     # Offer to run shell-setup automatically
     if command -v dex >/dev/null 2>&1; then
+        echo
         echo -n "Set up shell integration now? (completions, dex-cd) [Y/n] "
         read -r response
         response=${response:-Y}
