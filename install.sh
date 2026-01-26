@@ -63,13 +63,14 @@ detect_platform() {
     esac
 
     # Determine artifact name (matches GitHub Actions artifact names)
+    # For Linux, prefer musl (static) builds for maximum compatibility
     case "$OS-$ARCH" in
         linux-x86_64)
-            ARTIFACT="dex-linux-x86_64"
+            ARTIFACT="dex-linux-x86_64-musl"
             ARCHIVE_EXT="tar.gz"
             ;;
         linux-aarch64)
-            ARTIFACT="dex-linux-aarch64"
+            ARTIFACT="dex-linux-aarch64-musl"
             ARCHIVE_EXT="tar.gz"
             ;;
         macos-x86_64)
@@ -91,7 +92,7 @@ detect_platform() {
             ;;
     esac
 
-    log_info "Detected platform: $OS-$ARCH"
+    log_info "Detected platform: $OS-$ARCH (using static musl build for Linux)"
 }
 
 # Get latest version
