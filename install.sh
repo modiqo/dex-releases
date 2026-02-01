@@ -186,13 +186,52 @@ install_dex() {
         fi
     fi
     
+    # Offer to install Deno runtime for TypeScript SDK flows
+    if command -v dex >/dev/null 2>&1; then
+        echo
+        echo -n "Install Deno runtime for TypeScript flows? [Y/n] "
+        read -r response
+        response=${response:-Y}
+
+        if [ "$response" = "Y" ] || [ "$response" = "y" ]; then
+            echo
+            log_info "Installing Deno runtime..."
+            if dex deno install 2>/dev/null; then
+                echo
+                log_info "${GREEN}✓${NC} Deno runtime installed!"
+                echo
+                echo "Run 'dex deno status' to verify installation."
+
+                # Also install the TypeScript SDK
+                echo
+                log_info "Installing TypeScript SDK..."
+                if dex sdk install 2>/dev/null; then
+                    echo
+                    log_info "${GREEN}✓${NC} TypeScript SDK installed!"
+                    echo
+                    echo "SDK location: ~/.dex/lib/sdk/ts/"
+                    echo "Run 'dex sdk status' to verify installation."
+                else
+                    log_warn "SDK installation failed. Run manually: dex sdk install"
+                fi
+            else
+                log_warn "Deno installation failed. Run manually: dex deno install"
+            fi
+        else
+            echo
+            log_info "Skipped Deno + SDK installation. Run later:"
+            echo "  dex deno install"
+            echo "  dex sdk install"
+        fi
+    fi
+
     # Offer to run shell-setup automatically
     if command -v dex >/dev/null 2>&1; then
         echo
         echo -n "Set up shell integration now? (completions, dex-cd) [Y/n] "
         read -r response
         response=${response:-Y}
-        
+
         if [ "$response" = "Y" ] || [ "$response" = "y" ]; then
             echo
             log_info "Running dex shell-setup..."
