@@ -28,6 +28,39 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Read user input - works both in interactive and piped (curl | bash) contexts
+prompt_user() {
+    if [ -t 0 ]; then
+        read -r "$@"
+    else
+        read -r "$@" </dev/tty
+    fi
+}
+
+# Detect user's shell config file
+detect_shell_config() {
+    case "$SHELL" in
+        */zsh) echo "$HOME/.zshrc" ;;
+        */bash)
+            if [ -f "$HOME/.bashrc" ]; then
+                echo "$HOME/.bashrc"
+            else
+                echo "$HOME/.bash_profile"
+            fi
+            ;;
+        *) echo "" ;;
+    esac
+}
+
+# Get shell name for completion command
+detect_shell_name() {
+    case "$SHELL" in
+        */zsh) echo "zsh" ;;
+        */bash) echo "bash" ;;
+        *) echo "" ;;
+    esac
+}
+
 # Detect OS and architecture
 detect_platform() {
     local os=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -125,7 +158,7 @@ install_dex() {
 
     log_info "Extracting archive..."
     cd "$tmp_dir"
-    
+
     case "$ARCHIVE_EXT" in
         tar.gz)
             tar xzf "$archive_file"
@@ -156,7 +189,7 @@ install_dex() {
     log_info "${GREEN}✓${NC} dex v${VERSION} installed successfully!"
     echo
     log_info "Binary location: $BINARY_PATH"
-    
+
     # Check if install dir is in PATH
     if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
         log_warn "$INSTALL_DIR is not in your PATH"
@@ -185,18 +218,18 @@ install_dex() {
             log_warn "stdio initialization failed (run manually: dex stdio init-baseline)"
         fi
     fi
-    
+
     # Offer to install Deno runtime for TypeScript SDK flows
     if command -v dex >/dev/null 2>&1; then
         echo
         echo -n "Install Deno runtime for TypeScript flows? [Y/n] "
-        read -r response
+        prompt_user response
         response=${response:-Y}
 
         if [ "$response" = "Y" ] || [ "$response" = "y" ]; then
             echo
             log_info "Installing Deno runtime..."
-            if dex deno install 2>/dev/null; then
+            if dex deno install; then
                 echo
                 log_info "${GREEN}✓${NC} Deno runtime installed!"
                 echo
@@ -229,22 +262,51 @@ install_dex() {
     if command -v dex >/dev/null 2>&1; then
         echo
         echo -n "Set up shell integration now? (completions, dex-cd) [Y/n] "
-        read -r response
+        prompt_user response
         response=${response:-Y}
 
         if [ "$response" = "Y" ] || [ "$response" = "y" ]; then
             echo
             log_info "Running dex shell-setup..."
-            if dex shell-setup 2>/dev/null; then
+            if dex shell-setup; then
+                log_info "${GREEN}✓${NC} Shell integration files created!"
+            else
+                log_warn "Shell setup failed. Run manually: dex shell-setup"
+            fi
+
+            # Auto-append to shell rc file
+            SHELL_CONFIG=$(detect_shell_config)
+            SHELL_NAME=$(detect_shell_name)
+
+            if [ -n "$SHELL_CONFIG" ]; then
+                # Add shell integration source line
+                if ! grep -qF "dex/shell/init.sh" "$SHELL_CONFIG" 2>/dev/null; then
+                    echo "" >> "$SHELL_CONFIG"
+                    echo "# dex shell integration" >> "$SHELL_CONFIG"
+                    echo '[ -f ~/.dex/shell/init.sh ] && source ~/.dex/shell/init.sh' >> "$SHELL_CONFIG"
+                    log_info "Added shell integration to $SHELL_CONFIG"
+                else
+                    log_info "Shell integration already in $SHELL_CONFIG"
+                fi
+
+                # Add completion line
+                if [ -n "$SHELL_NAME" ] && ! grep -qF "dex completion" "$SHELL_CONFIG" 2>/dev/null; then
+                    echo "" >> "$SHELL_CONFIG"
+                    echo "# dex completion" >> "$SHELL_CONFIG"
+                    echo "eval \"\$(dex completion $SHELL_NAME)\"" >> "$SHELL_CONFIG"
+                    log_info "Added tab completion to $SHELL_CONFIG"
+                fi
+
                 echo
                 log_info "${GREEN}✓${NC} Shell integration configured!"
+                echo
+                echo "Restart your shell or run: source $SHELL_CONFIG"
+            else
                 echo
                 echo "Add this line to your shell config (~/.zshrc or ~/.bashrc):"
                 echo "  [ -f ~/.dex/shell/init.sh ] && source ~/.dex/shell/init.sh"
                 echo
-                echo "Then restart your shell or run: source ~/.zshrc"
-            else
-                log_warn "Shell setup failed. Run manually: dex shell-setup"
+                echo "Then restart your shell."
             fi
         else
             echo
@@ -278,4 +340,3 @@ main() {
 }
 
 main
-
