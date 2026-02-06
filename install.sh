@@ -183,7 +183,8 @@ install_dex() {
         BINARY_PATH="$INSTALL_DIR/dex"
     fi
 
-    # Cleanup
+    # Cleanup — cd back to HOME first since we're inside tmp_dir
+    cd "$HOME"
     rm -rf "$tmp_dir"
 
     log_info "${GREEN}✓${NC} dex v${VERSION} installed successfully!"
