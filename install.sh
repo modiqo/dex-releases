@@ -238,7 +238,7 @@ install_dex() {
                 # Also install the TypeScript SDK
                 echo
                 log_info "Installing TypeScript SDK..."
-                if dex sdk install 2>/dev/null; then
+                if dex sdk install; then
                     echo
                     log_info "${GREEN}✓${NC} TypeScript SDK installed!"
                     echo
