@@ -78,22 +78,22 @@ dex --version
 
 ## Getting Started
 
-### Private Beta Access
+### First-Time Setup
 
-dex is currently in private beta. You'll need an invite code to register.
+After installing, run the interactive setup wizard:
 
 ```bash
-# 1. Join with your invite code
-dex join abc123-def456-ghi789
-
-# 2. Register with OAuth
-dex register --provider google
-
-# 3. Install powerpack (adapters and skills)
-dex pull powerpack --yes --with-skills
+dex setup
 ```
 
-**Don't have an invite?** Email us: **ask@modiqo.ai**
+The wizard walks you through four screens in under 60 seconds:
+
+1. **Login** — Sign in to the community registry via GitHub or Google OAuth
+2. **Adapter Selection** — Pick adapters for the services you use (GitHub, Gmail, Calendar, Stripe, etc.). Associated skills are pulled automatically
+3. **Credentials** — Configure API tokens via OAuth flows or paste API keys. Each adapter runs a proof-of-life check against live data to confirm it works
+4. **Wire** — Connect dex to your AI coding tool (Claude Code, Cursor, or both) by generating adapter agents
+
+`dex setup` is state-aware and idempotent — run it again any time to add more adapters or reconfigure.
 
 ### Your First Workflow
 
@@ -156,25 +156,10 @@ dex adapter new github-api https://api.github.com/openapi.json --yes
 # 2. github_api_call - Execute discovered operations
 
 # Search for capability
-dex POST adapter/github-api '{
-  "method": "tools/call",
-  "params": {
-    "name": "github_api_probe",
-    "arguments": {"query": "create repository", "limit": 5}
-  }
-}' -s
+dex github_api_probe "create repository" --limit 5 -s
 
 # Execute discovered tool
-dex POST adapter/github-api '{
-  "method": "tools/call",
-  "params": {
-    "name": "github_api_call",
-    "arguments": {
-      "tool_name": "repos/create",
-      "arguments": {"name": "my-project", "owner": "myorg"}
-    }
-  }
-}' -s
+dex github_api_call repos/create '{"name": "my-project", "owner": "myorg"}' -s
 ```
 
 **Supported:** OpenAPI 3.x, Google Discovery, GraphQL SDL, gRPC
@@ -202,8 +187,6 @@ dex registry skill pull github-issue-creator
 # - Exponential value through composition
 ```
 
-**Power:** Skills + Adapters = Compounding Value
-
 ### 4. Flow Export: Exploration → Automation
 
 Convert successful explorations into reusable scripts:
@@ -227,7 +210,56 @@ dex flow fork ~/.dex/flows/my-workflow.sh \
 
 **Result:** 95%+ token savings on repeat tasks.
 
-### 5. Browser Automation
+### 5. Flow Templates: Scaffold New Flows
+
+Generate new flows with best-practice structure:
+
+```bash
+# Create a TypeScript flow
+dex flow template create --name my-flow --adapter github --type ts
+
+# Create a Python flow
+dex flow template create --name my-flow --adapter gmail --type py
+```
+
+Scaffolded flows include frontmatter metadata, SDK imports, fingerprint validation, auth checks, auto-tracking, and error handling — ready to customize.
+
+### 6. Trace: Execution Visualization
+
+Visualize workspace execution timelines as terminal Gantt charts:
+
+```bash
+# View execution timeline for current workspace
+dex trace
+
+# Export as interactive HTML
+dex trace --html report.html
+
+# View trace from archived workspace
+dex trace --archive path/to/archive.parquet
+```
+
+Shows latency bars, token heatmaps, and dependency flows across all requests in a workspace.
+
+### 7. Archive: Workspace Export to Parquet
+
+Capture workspace state as columnar Parquet files for offline analysis:
+
+```bash
+# Archive current workspace
+dex archive
+
+# Archive with body redaction (privacy-safe)
+dex archive --no-bodies
+
+# Archive all workspaces
+dex archive --all
+
+# Analyze with DuckDB, Polars, or Pandas
+duckdb -c "SELECT * FROM 'workspace.parquet'"
+```
+
+### 8. Browser Automation
 
 Automate web interactions via Playwright:
 
@@ -250,6 +282,44 @@ dex export ~/.dex/flows/web/my-automation.sh
 
 ---
 
+## SDKs
+
+### TypeScript SDK
+
+The TypeScript SDK ships with dex and runs via the embedded Deno runtime:
+
+```typescript
+import { Dex, FlowOutput, runPreflight } from "dex-sdk";
+
+const dex = new Dex();
+const out = new FlowOutput();  // Supports human, summary, and json output modes
+
+await runPreflight(dex, { adapters: ["github"] });
+
+out.human("Searching repositories...");
+out.summary("Found 10 repositories");
+```
+
+### Python SDK
+
+Full Pydantic-native Python SDK with feature parity:
+
+```python
+from dex_sdk import Dex, FlowOutput, run_preflight
+
+dex = Dex()
+out = FlowOutput()
+
+await run_preflight(dex, adapters=["github"])
+
+out.human("Searching repositories...")
+out.summary("Found 10 repositories")
+```
+
+Both SDKs include: workspace management, token management, HTTP execution, adapter interaction, flow search, browser automation, background tasks, and structured output modes.
+
+---
+
 ## The Power of Composition
 
 ### Adapters + Skills = Exponential Value
@@ -268,28 +338,7 @@ dex export ~/.dex/flows/web/my-automation.sh
 - `bug-to-payment` (uses github-issue-creator + payment-processor)
 - `deploy-and-notify` (uses multiple skills + adapters)
 
-**Result:** Each layer multiplies value. 3 adapters × 10 skills = 30 capabilities. Add 5 composite skills = 150+ workflows.
-
-### Real Example
-
-```bash
-# Install GitHub adapter
-dex adapter new github-api https://api.github.com/openapi.json --yes
-
-# Install skill that uses it
-dex registry skill pull github-issue-creator
-
-# Skill automatically:
-# 1. Checks for github_api adapter (by fingerprint)
-# 2. Installs if missing
-# 3. Runs workflow using adapter
-
-# Now you can:
-~/.dex/skills/github-issue-creator.sh "Bug title" "Description"
-
-# And other skills can use github-issue-creator:
-~/.dex/skills/bug-tracker.sh  # Uses github-issue-creator internally
-```
+**Result:** Each layer multiplies value. 3 adapters x 10 skills = 30 capabilities. Add 5 composite skills = 150+ workflows.
 
 ---
 
@@ -358,14 +407,28 @@ Don't rebuild existing workflows:
 # Search before building
 dex flow search "fetch github issues"
 
-# Found? Run it from /tmp
-cd /tmp
+# Found? Run it
 ~/.dex/flows/github/fetch-issues.sh facebook react open
 
 # Not found? Build, then export
 dex init my-workflow --seq
 # ... explore ...
 dex export ~/.dex/flows/my-workflow.sh
+```
+
+### Structured Output Modes
+
+Flows support three output modes via `--output=<mode>`:
+
+```bash
+# Human output (default) — verbose with formatting
+dex deno run --allow-all ./flow.ts
+
+# Summary output — compact, parseable lines
+dex deno run --allow-all ./flow.ts --output=summary
+
+# JSON output — machine-readable structured data
+dex deno run --allow-all ./flow.ts --output=json
 ```
 
 ---
@@ -382,6 +445,7 @@ dex export ~/.dex/flows/my-workflow.sh
 │ Cache Query Time:   <100 microseconds           │
 │ Flow Export Size:   <500 bytes (binary)         │
 │ Token Savings:      90-97% on repeat tasks      │
+│ Setup Wizard:       <60 seconds (first run)     │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -402,13 +466,15 @@ dex export ~/.dex/flows/my-workflow.sh
 - **Skill Distribution:** Share reusable workflows via registry
 - **Browser Automation:** Playwright workflows with export
 - **Testing:** Deterministic replay of API sequences
+- **Observability:** Trace execution timelines and archive workspace data
 
 ### For Teams
 
 - **Knowledge Sharing:** Export successful workflows as skills
-- **Onboarding:** New agents learn from existing flows
+- **Onboarding:** `dex setup` gets new team members productive in under a minute
 - **Standardization:** Consistent API interaction patterns
 - **Cost Reduction:** 90%+ token savings across team
+- **Analytics:** Archive workspaces to Parquet for offline analysis
 
 ---
 
@@ -450,6 +516,9 @@ Each task gets its own isolated sandbox:
 ### Essential Commands
 
 ```bash
+# First-Time Setup
+dex setup                        # Interactive wizard
+
 # Onboarding
 dex how                          # Interactive guide
 dex start                        # Protocol checklist
@@ -474,6 +543,22 @@ dex adapter list                 # List installed adapters
 dex registry skill search "query" # Search registry
 dex registry skill pull <name>    # Install skill
 dex registry skill push <file>    # Publish skill
+
+# Flow Templates
+dex flow template create --name <name> --adapter <adapter> --type ts
+dex flow template create --name <name> --adapter <adapter> --type py
+
+# Observability
+dex trace                        # Terminal Gantt chart
+dex trace --html report.html     # Export as interactive HTML
+dex archive                      # Export workspace to Parquet
+dex archive --all                # Archive all workspaces
+dex ps --detailed                # Endpoint health monitoring
+
+# Tokens
+dex token set <NAME> <VALUE>     # Store encrypted token
+dex token list                   # List stored tokens
+dex token-valid <ENDPOINT>       # Validate OAuth token
 
 # Browser
 dex browse --headed <url>        # Navigate and snapshot
@@ -500,25 +585,10 @@ cd ~/.dex/workspaces/github-issues
 dex set owner=facebook repo=react state=open
 
 # Search for capability
-dex POST adapter/github-api '{
-  "method": "tools/call",
-  "params": {
-    "name": "github_api_probe",
-    "arguments": {"query": "list issues", "limit": 5}
-  }
-}' -s
+dex github_api_probe "list issues" --limit 5 -s
 
 # Execute discovered tool
-dex POST adapter/github-api '{
-  "method": "tools/call",
-  "params": {
-    "name": "github_api_call",
-    "arguments": {
-      "tool_name": "issues/list",
-      "arguments": {"owner": "$owner", "repo": "$repo", "state": "$state"}
-    }
-  }
-}' -t -s
+dex github_api_call issues/list '{"owner": "$owner", "repo": "$repo", "state": "$state"}' -t -s
 
 # Query results
 dex @2 '.items[].title' -r
@@ -558,74 +628,23 @@ dex registry skill pull bug-tracker
 ~/.dex/skills/bug-tracker.sh "Critical bug" "Production down"
 ```
 
-**Value Multiplication:**
-- 1 adapter (github_api) → 1,111 operations
-- 10 skills using adapter → 10 workflows
-- 5 composite skills → 50+ capabilities
-- Total: 1,111 + 10 + 50 = 1,171 capabilities from 1 adapter
+### Example 3: Setup and Proof-of-Life
 
----
+```bash
+# Run the setup wizard
+dex setup
 
-## Why dex?
+# The wizard will:
+# 1. Authenticate you with the community registry
+# 2. Let you pick adapters (e.g., GitHub + Gmail)
+# 3. Walk you through OAuth flows and API key setup
+# 4. Run proof-of-life: fetch real data from each adapter
+# 5. Generate agents for your AI coding tool
 
-### Problem: Token Waste
-
-Traditional approach:
+# After setup, your agent can immediately use dex:
+# "Search my GitHub repos" → works instantly
+# "Check my recent emails" → works instantly
 ```
-Agent: "Fetch GitHub issues"
-→ Lists all 1,111 GitHub operations (80K tokens)
-→ Picks one operation
-→ Makes API call
-→ Parses response
-→ Total: 30 seconds, 8,400 tokens
-
-Next time: Repeat everything (no memory)
-```
-
-### Solution: Learning Substrate
-
-With dex:
-```
-First time:
-→ dex flow search "fetch github issues"
-→ Not found, explore and export
-→ 30 seconds, 8,400 tokens
-
-Second time:
-→ dex flow search "fetch github issues"
-→ Found! Run existing flow
-→ 2 seconds, 250 tokens (97% savings)
-
-Subsequent times: Same 2 seconds, 250 tokens
-```
-
-### Problem: MCP Infrastructure Gap
-
-**Traditional:** Each API needs a custom MCP server
-- GitHub → Custom server
-- Stripe → Custom server
-- Twilio → Custom server
-- Result: Maintenance burden, token waste
-
-**With Adapters:** One framework for all APIs
-- Any OpenAPI spec → Adapter in seconds
-- 2 virtual tools: `{adapter}_probe` + `{adapter}_call`
-- Semantic search across all operations
-- Result: Universal API access
-
-### Problem: Workflow Silos
-
-**Traditional:** Each agent starts from scratch
-- Agent A explores GitHub workflow
-- Agent B explores same workflow
-- Agent C explores same workflow
-- Result: 3× cost, 3× time
-
-**With Skills:** Agents learn from each other
-- Agent A explores and exports skill
-- Agent B searches registry, finds skill, reuses
-- Agent C searches registry, finds skill, reuses
-- Result: 1× cost, instant reuse
 
 ---
 
@@ -644,7 +663,7 @@ dex for @1 '.items[]' --parallel POST /api '{"id": "$"}' -t -s
 
 ```bash
 # Track variable sources
-dex @1 '.name' -s tool_name    # Tracks: tool_name ← @1.name
+dex @1 '.name' -s tool_name    # Tracks: tool_name <- @1.name
 
 # Use in templates
 dex POST /api '{"tool":"$tool_name"}' -t -s
@@ -669,14 +688,12 @@ dex detect
 # - Inefficient query patterns
 ```
 
-### Model Tracking
+### Background Tasks
 
 ```bash
-# Set your model identity
-dex model set claude-sonnet-4.5 --provider anthropic
-
-# Track which models explore which workflows
-# Enables performance comparison and debugging
+# SDK support for long-running operations
+# Progress mode (default) — animated display, blocks until done
+# Background mode — returns handle for manual polling
 ```
 
 ---
@@ -763,12 +780,12 @@ dex machine story                # Complete workflow story
 
 ## Platform Support
 
-- **macOS** - Apple Silicon (M1/M2/M3) and Intel
-- **Linux** - x86_64 (Ubuntu, Debian, Fedora, RHEL, etc.)
-- **Windows** - Coming soon
+- **macOS** — Apple Silicon (M1/M2/M3/M4) and Intel
+- **Linux** — x86_64 (Ubuntu, Debian, Fedora, RHEL, etc.)
+- **Windows** — Coming soon
 
-**Binary Size:** 8-15 MB (depending on features)  
-**Dependencies:** Zero runtime dependencies  
+**Binary Size:** 8-15 MB (depending on features)
+**Dependencies:** Zero runtime dependencies
 **Language:** Pure Rust (no C bindings)
 
 ---
@@ -786,13 +803,9 @@ curl -LO https://github.com/modiqo/dex-releases/raw/main/releases/latest/dex-mac
 sha256sum -c dex-macos-aarch64.tar.gz.sha256
 ```
 
-### Invite System
+### Token Storage
 
-Private beta access with:
-- Invite codes (72 bits entropy)
-- Rate limiting (10 attempts/IP/minute)
-- RLS policies for access control
-- Referral tracking (5 invites per user)
+Tokens are stored in an encrypted vault at `~/.dex/secrets/tokens.json`. OAuth tokens are acquired via browser-based flows and stored securely — no credentials are passed through the command line.
 
 ---
 
@@ -815,7 +828,6 @@ curl -fsSL https://raw.githubusercontent.com/modiqo/dex-releases/main/install.sh
 ## Community
 
 - **Email:** ask@modiqo.ai
-- **Private Beta:** Request invite code
 - **Issues:** Contact via email
 - **Documentation:** Run `dex guidance` after installation
 
@@ -823,23 +835,29 @@ curl -fsSL https://raw.githubusercontent.com/modiqo/dex-releases/main/install.sh
 
 ## FAQ
 
-**Q: What makes dex different from other MCP tools?**  
-A: dex is a learning substrate. It doesn't just execute MCP calls - it learns from successful explorations and makes them reusable. Agents learn from each other.
+**Q: How do I get started?**
+A: Install dex, then run `dex setup`. The interactive wizard handles everything — registry login, adapter selection, credential configuration, and AI tool integration — in under 60 seconds.
 
-**Q: Do I need to write MCP servers for my APIs?**  
+**Q: What makes dex different from other MCP tools?**
+A: dex is a learning substrate. It doesn't just execute MCP calls — it learns from successful explorations and makes them reusable. Agents learn from each other.
+
+**Q: Do I need to write MCP servers for my APIs?**
 A: No. Use the adapter framework to transform any OpenAPI spec into MCP capabilities in seconds.
 
-**Q: Can I share workflows with my team?**  
+**Q: Can I share workflows with my team?**
 A: Yes. Export flows as skills and publish to your organization or community in the registry.
 
-**Q: How does the 90%+ token savings work?**  
+**Q: How does the 90%+ token savings work?**
 A: First exploration is cached. Subsequent runs query the cache (<100 microseconds) instead of re-executing HTTP calls (500ms). Plus, exported flows are parameterized and reusable.
 
-**Q: What's the difference between adapters and skills?**  
+**Q: What's the difference between adapters and skills?**
 A: Adapters transform APIs into MCP. Skills are workflows that use adapters. Skills can depend on other skills, creating compounding value.
 
-**Q: Is my data private?**  
-A: Yes. Workspaces are local. Registry is opt-in. You control what you publish.
+**Q: Can I write flows in Python?**
+A: Yes. dex ships with both TypeScript and Python SDKs. Use `dex flow template create --type py` to scaffold a Python flow.
+
+**Q: Is my data private?**
+A: Yes. Workspaces are local. Registry is opt-in. Tokens are stored in an encrypted local vault. You control what you publish.
 
 ---
 
@@ -853,12 +871,12 @@ See LICENSE file in this repository.
 
 dex is developed by Modiqo. It's designed to let agents learn from each other through embedded guidance and self-reflective languages.
 
-**Website:** https://modiqo.ai  
-**Releases:** https://github.com/modiqo/dex-releases  
+**Website:** https://modiqo.ai
+**Releases:** https://github.com/modiqo/dex-releases
 **Source:** Private (this is a releases-only repository)
 
 ---
 
-**Current Version:** v0.12.0 - Private Beta Launch  
-**Status:** Production Ready  
+**Current Version:** v0.25.0
+**Status:** Production Ready
 **Platforms:** macOS (Intel + Apple Silicon), Linux (x86_64)
