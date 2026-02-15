@@ -13,6 +13,7 @@ VERSION="${DEX_VERSION:-latest}"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Helper functions
@@ -322,8 +323,11 @@ install_dex() {
     echo -e "  ${YELLOW}Humans still required.${NC}"
     echo "========================================="
     echo
-    echo -e "[INFO] Run ${GREEN}dex human${NC} to see your journey"
-    echo "  (We'll tell you what to do next. Promise it's fun.)"
+    echo -e "  ${GREEN}dex setup${NC}  — Zero to value in under 60 seconds."
+    echo -e "               Adapters, tokens, flows. Done."
+    echo
+    echo -e "  ${CYAN}dex human${NC}  — For those who read the manual"
+    echo -e "               before assembling the furniture."
     echo
 }
 
