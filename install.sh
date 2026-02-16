@@ -172,7 +172,7 @@ install_dex() {
     # Create install directory if it doesn't exist
     mkdir -p "$INSTALL_DIR"
 
-    # Install binary
+    # Install binaries
     log_info "Installing to $INSTALL_DIR/dex..."
     if [ "$OS" = "windows" ]; then
         mv dex.exe "$INSTALL_DIR/dex.exe"
@@ -182,6 +182,12 @@ install_dex() {
         mv dex "$INSTALL_DIR/dex"
         chmod +x "$INSTALL_DIR/dex"
         BINARY_PATH="$INSTALL_DIR/dex"
+        # Install stdio daemon if present in archive
+        if [ -f "dex-stdio-daemon" ]; then
+            mv dex-stdio-daemon "$INSTALL_DIR/dex-stdio-daemon"
+            chmod +x "$INSTALL_DIR/dex-stdio-daemon"
+            log_info "Installed dex-stdio-daemon"
+        fi
     fi
 
     # Cleanup — cd back to HOME first since we're inside tmp_dir
