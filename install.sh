@@ -231,10 +231,10 @@ install_dex() {
     if [ -d "$HOME/.dex/bin" ] && [ -x "$HOME/.dex/bin/npx" ]; then
         echo
         log_info "Installing Playwright browser (needed for dex browse)..."
-        if "$HOME/.dex/bin/npx" playwright install chrome 2>/dev/null; then
+        if "$HOME/.dex/bin/npx" -y @playwright/test install --with-deps chrome; then
             log_info "${GREEN}✓${NC} Playwright Chrome installed"
         else
-            log_warn "Playwright install failed (run manually: ~/.dex/bin/npx playwright install chrome)"
+            log_warn "Playwright install failed (run manually: ~/.dex/bin/npx -y @playwright/test install --with-deps chrome)"
         fi
     fi
 
