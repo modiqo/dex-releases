@@ -227,18 +227,7 @@ install_dex() {
         fi
     fi
 
-    # Install Playwright browser (needed for dex browse)
-    if [ -d "$HOME/.dex/bin" ] && [ -x "$HOME/.dex/bin/npx" ]; then
-        echo
-        log_info "Installing Playwright browser (needed for dex browse)..."
-        if "$HOME/.dex/bin/npx" -y @playwright/test install --with-deps chrome; then
-            log_info "${GREEN}✓${NC} Playwright Chrome installed"
-        else
-            log_warn "Playwright install failed (run manually: ~/.dex/bin/npx -y @playwright/test install --with-deps chrome)"
-        fi
-    fi
-
-    # Add ~/.dex/bin to PATH (bundled runtimes: node, npm, npx, deno)
+    # Add ~/.dex/bin to PATH NOW so npx/node shebangs resolve during Playwright install
     if [ -d "$HOME/.dex/bin" ]; then
         case ":$PATH:" in
             *":$HOME/.dex/bin:"*) ;;
@@ -252,6 +241,17 @@ install_dex() {
             echo "# dex bundled runtimes (node, npm, npx, deno)" >> "$SHELL_CONFIG"
             echo 'export PATH="$HOME/.dex/bin:$PATH"' >> "$SHELL_CONFIG"
             log_info "Added ~/.dex/bin to PATH in $SHELL_CONFIG"
+        fi
+    fi
+
+    # Install Playwright browser (needed for dex browse)
+    if command -v npx >/dev/null 2>&1; then
+        echo
+        log_info "Installing Playwright browser (needed for dex browse)..."
+        if npx -y @playwright/test install --with-deps chrome; then
+            log_info "${GREEN}✓${NC} Playwright Chrome installed"
+        else
+            log_warn "Playwright install failed (run manually: npx -y @playwright/test install --with-deps chrome)"
         fi
     fi
 
