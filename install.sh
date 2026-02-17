@@ -216,6 +216,45 @@ install_dex() {
         log_warn "dex command not found in PATH. You may need to restart your shell."
     fi
 
+    # Install Node.js runtime (needed for npx-based stdio servers)
+    if command -v dex >/dev/null 2>&1; then
+        echo
+        log_info "Installing Node.js runtime (needed for stdio MCP servers)..."
+        if dex node install 2>/dev/null; then
+            log_info "${GREEN}✓${NC} Node.js runtime installed"
+        else
+            log_warn "Node.js installation failed (run manually: dex node install)"
+        fi
+    fi
+
+    # Install Playwright browser (needed for dex browse)
+    if [ -d "$HOME/.dex/bin" ] && [ -x "$HOME/.dex/bin/npx" ]; then
+        echo
+        log_info "Installing Playwright browser (needed for dex browse)..."
+        if "$HOME/.dex/bin/npx" playwright install chrome 2>/dev/null; then
+            log_info "${GREEN}✓${NC} Playwright Chrome installed"
+        else
+            log_warn "Playwright install failed (run manually: ~/.dex/bin/npx playwright install chrome)"
+        fi
+    fi
+
+    # Add ~/.dex/bin to PATH (bundled runtimes: node, npm, npx, deno)
+    if [ -d "$HOME/.dex/bin" ]; then
+        case ":$PATH:" in
+            *":$HOME/.dex/bin:"*) ;;
+            *) export PATH="$HOME/.dex/bin:$PATH" ;;
+        esac
+
+        # Persist to shell rc file so future sessions find npx/node
+        SHELL_CONFIG=$(detect_shell_config)
+        if [ -n "$SHELL_CONFIG" ] && ! grep -qF '/.dex/bin' "$SHELL_CONFIG" 2>/dev/null; then
+            echo "" >> "$SHELL_CONFIG"
+            echo "# dex bundled runtimes (node, npm, npx, deno)" >> "$SHELL_CONFIG"
+            echo 'export PATH="$HOME/.dex/bin:$PATH"' >> "$SHELL_CONFIG"
+            log_info "Added ~/.dex/bin to PATH in $SHELL_CONFIG"
+        fi
+    fi
+
     # Initialize baseline stdio MCP servers
     if command -v dex >/dev/null 2>&1; then
         echo
