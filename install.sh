@@ -19,6 +19,9 @@ log_file() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
 }
 
+# Restore cursor on exit (in case spinner hides it and script is interrupted)
+trap 'printf "\033[?25h" >&2' EXIT
+
 # ─── Colors ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -58,6 +61,9 @@ spin() {
 
     local i=0 wit_idx=0 wit_count=${#wits[@]} ticks=0
 
+    # Hide cursor during spinner to avoid blinking artifact
+    printf "\033[?25l" >&2
+
     # Foreground spinner — naturally terminates when bg process exits
     while kill -0 "$cmd_pid" 2>/dev/null; do
         local frame="${SPINNER_FRAMES[$((i % ${#SPINNER_FRAMES[@]}))]}"
@@ -89,7 +95,8 @@ spin() {
         elapsed="${DIM}${secs}s${NC}"
     fi
 
-    # Clear spinner + wit line
+    # Restore cursor, then clear spinner + wit line
+    printf "\033[?25h" >&2
     printf "\r\033[K\n\033[K\033[A" >&2
 
     # Auto-print success line if success_msg is provided
