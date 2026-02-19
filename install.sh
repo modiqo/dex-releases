@@ -3,11 +3,13 @@ set -e
 
 # dex installation script
 # Usage: curl -fsSL https://github.com/modiqo/dex-releases/releases/latest/download/install.sh | bash
+# Non-interactive: DEX_YES=1 curl -fsSL ... | bash
 
 # Configuration
 REPO="modiqo/dex-releases"
 INSTALL_DIR="${DEX_INSTALL_DIR:-$HOME/.local/bin}"
 VERSION="${DEX_VERSION:-latest}"
+AUTO_YES="${DEX_YES:-}"
 
 # ─── Log setup ───────────────────────────────────────────────────────────────
 LOG_DIR="$HOME/.dex/log"
@@ -349,9 +351,13 @@ install_dex() {
     # ── deno + sdk (interactive) ──────────────────────────────────────────
     if command -v dex >/dev/null 2>&1; then
         echo "" >&2
-        printf "  ${CYAN}?${NC}  %-10s Install Deno runtime for TypeScript flows? ${DIM}[Y/n]${NC} " "deno" >&2
-        prompt_user response
-        response=${response:-Y}
+        if [ -n "$AUTO_YES" ]; then
+            response="Y"
+        else
+            printf "  ${CYAN}?${NC}  %-10s Install Deno runtime for TypeScript flows? ${DIM}[Y/n]${NC} " "deno" >&2
+            prompt_user response
+            response=${response:-Y}
+        fi
 
         if [ "$response" = "Y" ] || [ "$response" = "y" ]; then
             if spin "deno" "Installing Deno runtime..." \
@@ -378,9 +384,13 @@ install_dex() {
     # ── shell setup (interactive) ─────────────────────────────────────────
     if command -v dex >/dev/null 2>&1; then
         echo "" >&2
-        printf "  ${CYAN}?${NC}  %-10s Set up shell integration? (completions, dex-cd) ${DIM}[Y/n]${NC} " "shell" >&2
-        prompt_user response
-        response=${response:-Y}
+        if [ -n "$AUTO_YES" ]; then
+            response="Y"
+        else
+            printf "  ${CYAN}?${NC}  %-10s Set up shell integration? (completions, dex-cd) ${DIM}[Y/n]${NC} " "shell" >&2
+            prompt_user response
+            response=${response:-Y}
+        fi
 
         if [ "$response" = "Y" ] || [ "$response" = "y" ]; then
             if spin "shell" "Setting up shell integration..." \
