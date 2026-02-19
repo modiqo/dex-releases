@@ -42,6 +42,22 @@ dex sits **between your AI agent and APIs**, transforming exploration into reusa
 curl -fsSL https://raw.githubusercontent.com/modiqo/dex-releases/main/install.sh | bash
 ```
 
+### Non-Interactive Install (CI / VM / Agent Swarming)
+
+For automated deployments where no human is at the terminal, set `DEX_YES=1` to skip all interactive prompts (Deno runtime, shell integration):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/modiqo/dex-releases/main/install.sh | DEX_YES=1 bash
+```
+
+Or using `export`:
+
+```bash
+export DEX_YES=1 && curl -fsSL https://raw.githubusercontent.com/modiqo/dex-releases/main/install.sh | bash
+```
+
+This is the recommended approach for provisioning cloud VMs, Docker containers, and CI pipelines.
+
 ### Platform-Specific
 
 <details>
@@ -94,6 +110,60 @@ The wizard walks you through four screens in under 60 seconds:
 4. **Wire** — Connect dex to your AI coding tool (Claude Code, Cursor, or both) by generating adapter agents
 
 `dex setup` is state-aware and idempotent — run it again any time to add more adapters or reconfigure.
+
+### Headless Setup (Non-Interactive)
+
+For automated provisioning of remote nodes (VMs, containers, agent swarms), use `--headless` to run setup without any interactive prompts:
+
+```bash
+dex setup --headless \
+  --claim-token dxp_<TOKEN> \
+  --adapters github,gmail,sheets \
+  --provider claude \
+  --verify
+```
+
+**Flags:**
+
+| Flag | Description |
+|---|---|
+| `--headless` | Run in non-interactive mode (required) |
+| `--claim-token <TOKEN>` | Device claim token (or set `DEX_CLAIM_TOKEN` env var) |
+| `--adapters <LIST>` | Comma-separated adapter IDs to install from registry |
+| `--provider <NAME>` | Wire to AI tool: `claude`, `cursor`, `codex`, `agents-md`, or `all` |
+| `--verify` | Run proof-of-life checks after setup |
+| `--skip-wire` | Skip skill/agent wiring step |
+
+**Environment variables:**
+
+| Variable | Description |
+|---|---|
+| `DEX_CLAIM_TOKEN` | Claim token (alternative to `--claim-token` flag) |
+| `DEX_VAULT_PASSPHRASE` | Vault passphrase for pulling encrypted credentials |
+
+**Finding adapter IDs:**
+
+```bash
+dex adapter list                              # Show installed adapters
+dex registry adapter list --community <slug>  # Browse available adapters in registry
+```
+
+**Full automated deployment (install + setup):**
+
+```bash
+# 1. Install dex non-interactively
+curl -fsSL https://raw.githubusercontent.com/modiqo/dex-releases/main/install.sh | DEX_YES=1 bash
+
+# 2. Source shell to get dex on PATH
+source ~/.bashrc  # or ~/.zshrc
+
+# 3. Run headless setup with env vars
+export DEX_CLAIM_TOKEN=dxp_<TOKEN>
+export DEX_VAULT_PASSPHRASE=<passphrase>
+dex setup --headless --adapters github,gmail --provider claude --verify
+```
+
+For full help: `dex setup --help`
 
 ### Your First Workflow
 
