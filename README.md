@@ -42,12 +42,6 @@ dex sits **between your AI agent and APIs**, transforming exploration into reusa
 curl -fsSL https://raw.githubusercontent.com/modiqo/dex-releases/main/install.sh | bash
 ```
 
-### Homebrew (macOS / Linux)
-
-```bash
-brew install modiqo/tap/dex
-```
-
 ### Non-Interactive Install (CI / VM / Agent Swarming)
 
 For automated deployments where no human is at the terminal, set `DEX_YES=1` to skip all interactive prompts (Deno runtime, shell integration):
@@ -949,7 +943,6 @@ dex is developed by Modiqo. It's designed to let agents learn from each other th
 
 **Website:** https://modiqo.ai
 **Releases:** https://github.com/modiqo/dex-releases
-**Homebrew:** https://github.com/modiqo/homebrew-tap
 **Source:** Private (this is a releases-only repository)
 
 ---
