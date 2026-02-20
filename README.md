@@ -949,6 +949,7 @@ dex is developed by Modiqo. It's designed to let agents learn from each other th
 
 **Website:** https://modiqo.ai
 **Releases:** https://github.com/modiqo/dex-releases
+**Homebrew:** https://github.com/modiqo/homebrew-tap
 **Source:** Private (this is a releases-only repository)
 
 ---
