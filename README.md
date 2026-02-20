@@ -42,6 +42,12 @@ dex sits **between your AI agent and APIs**, transforming exploration into reusa
 curl -fsSL https://raw.githubusercontent.com/modiqo/dex-releases/main/install.sh | bash
 ```
 
+### Homebrew (macOS / Linux)
+
+```bash
+brew install modiqo/tap/dex
+```
+
 ### Non-Interactive Install (CI / VM / Agent Swarming)
 
 For automated deployments where no human is at the terminal, set `DEX_YES=1` to skip all interactive prompts (Deno runtime, shell integration):
